@@ -1,0 +1,151 @@
+# ============================================
+# CONFIGURACIÓN HÍBRIDA DE LA APLICACIÓN
+# ============================================
+# Este archivo contiene configuraciones PÚBLICAS y estáticas
+# NO colocar secretos, contraseñas o tokens aquí
+# Para datos sensibles usar .env
+
+[app]
+title = "Sistema para automatizacion de vales de entradas y salidas de materiales"
+description = "Este e sun sistema hibrido de monolitico y en capas, utiliza una plantilla de desarrollo de API basada en FastAPI"
+version = "1.0.0"
+debug = false  # Sobreescrito por .env en desarrollo
+
+[app.features]
+# Features habilitadas en la aplicación
+enable_swagger = true
+enable_redoc = true
+enable_cors = true
+enable_webhooks = false
+enable_rate_limiting = false
+enable_email_notifications = false
+
+[server]
+# Configuración del servidor (puede ser sobreescrita por .env)
+host = "0.0.0.0"
+port = 8001
+reload = false  # Solo true en desarrollo
+workers = 4
+
+[database]
+# Configuración de pool de conexiones
+# La URL de conexión viene de .env
+pool_size = 10
+max_overflow = 20
+pool_timeout = 30
+pool_recycle = 1800
+echo_sql = false  # Mostrar queries SQL en logs
+
+[security]
+# Configuración de seguridad (valores públicos)
+algorithm = "HS256"
+access_token_expire_minutes = 30
+refresh_token_expire_days = 7
+password_min_length = 8
+max_login_attempts = 5
+token_blacklist_enabled = true
+
+[security.cors]
+# Configuración de CORS
+allow_origins = ["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"]
+allow_credentials = true
+allow_methods = ["*"]
+allow_headers = ["*"]
+
+[security.rate_limiting]
+# Rate limiting (si está habilitado)
+default_limit = "100/minute"
+storage_url = "memory://"
+
+[pagination]
+# Valores por defecto para paginación
+default_page = 1
+default_page_size = 20
+max_page_size = 100
+max_limit = 1000
+
+[validation]
+# Configuración de validaciones de negocio
+
+[validation.individual]
+# Validaciones para entidad Individual (entidad base de ejemplo)
+min_age = 0
+max_age = 150
+min_height = 0.5  # metros
+max_height = 2.5  # metros
+min_weight = 20.0  # kg
+max_weight = 300.0  # kg
+min_salary = 0.0
+max_salary = 10000000.0
+
+[validation.strings]
+# Longitudes de strings
+min_name_length = 2
+max_name_length = 100
+min_email_length = 5
+max_email_length = 255
+min_password_length = 8
+max_password_length = 128
+
+[validation.arrays]
+# Validaciones de arrays
+max_phone_numbers = 5
+max_alternate_emails = 3
+max_skills = 50
+max_languages = 10
+
+[logging]
+# Configuración de logging
+level = "INFO"
+format = "json"  # json o text
+file_path = "logs/app.log"
+enable_correlation_id = true
+max_bytes = 10485760  # 10MB
+backup_count = 5
+
+[logging.levels]
+# Niveles específicos por módulo
+uvicorn = "INFO"
+sqlalchemy = "WARNING"
+fastapi = "INFO"
+
+[cache]
+# Configuración de caché
+enabled = false
+backend = "memory"  # memory, redis
+default_ttl = 300  # 5 minutos en segundos
+
+[monitoring]
+# Configuración de monitoreo
+enable_metrics = false
+metrics_endpoint = "/metrics"
+enable_health_check = true
+health_check_endpoint = "/health"
+
+[api]
+# Configuración de la API
+prefix = ""  # Prefijo global (ej: "/api")
+version_prefix = ""  # Prefijo de versión (ej: "/v1")
+docs_url = "/docs"
+redoc_url = "/redoc"
+openapi_url = "/openapi.json"
+
+[api.response]
+# Configuración de respuestas
+include_timestamp = true
+include_request_id = true
+pretty_json = false
+
+[environments.development]
+# Configuración específica para desarrollo
+debug = true
+log_level = "DEBUG"
+reload = true
+workers = 1
+
+[environments.production]
+# Configuración específica para producción
+debug = false
+log_level = "WARNING"
+reload = false
+workers = 4
