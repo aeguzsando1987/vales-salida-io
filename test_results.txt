@@ -1,0 +1,7 @@
+=================================================================
+   SCRIPT DE TESTING EXHAUSTIVO - ENTIDAD BRANCH
+   Proyecto: Sistema de Vales de Entrada/Salida
+   Total de Tests: 57
+=================================================================
+
+[ERROR] Servidor NO esta corriendo. Ejecutar: python scripts.py start

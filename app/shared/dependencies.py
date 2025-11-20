@@ -480,13 +480,14 @@ def get_effective_permission(user_id: int, entity: str, action: str, db: Session
     if not user:
         return 0  # Usuario no existe
 
-    # Mapeo de roles legacy (1-5) a nombres de templates
+    # Mapeo de roles legacy (1-6) a nombres de templates
     role_mapping = {
         1: "Admin",
         2: "Manager",
         3: "Collaborator",
         4: "Reader",
-        5: "Guest"
+        5: "Guest",
+        6: "Checker"
     }
 
     role_name = role_mapping.get(user.role)

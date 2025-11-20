@@ -99,8 +99,10 @@ scratch.py
 playground.py
 example_usage.py
 check_*.py
+assign_branch_permissions.py
+create_test_users.py
 
-# Archivos de respaldo
+# Archivos de respaldo//
 *.bak
 *.backup
 *.old

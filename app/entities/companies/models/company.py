@@ -109,5 +109,8 @@ class Company(Base):
     updater = relationship("User", foreign_keys=[updated_by])
     deleter = relationship("User", foreign_keys=[deleted_by])
 
+    # Relación inversa con branches (agregada 2025-11-12)
+    branches = relationship("Branch", back_populates="company")
+
     def __repr__(self):
         return f"<Company(id={self.id}, company_name='{self.company_name}', tin='{self.tin}', status='{self.status}')>"

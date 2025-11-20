@@ -1,26 +1,52 @@
-# FastAPI Dynamic API Template
+# Sistema de Vales de Entrada/Salida de Material
 
-> Enterprise-ready FastAPI template with 7-layer architecture and granular permissions system.
+> Sistema para automatizar la emisión y gestión de vales de entrada y salida de material con validación QR, gestión de retornos y control de estados.
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-green)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12%2B-blue)](https://www.postgresql.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Development](https://img.shields.io/badge/Status-In%20Development-yellow)](https://github.com/aeguzsando1987/vales-salida-io)
 
-## Key Features
+**Repositorio:** https://github.com/aeguzsando1987/vales-salida-io
+**Última Actualización:** 2025-11-19
+**Estado:** Fase 1 - 40% Completado
 
+---
+
+##  Características del Sistema
+
+### Core Features
+- **Validación QR** - Códigos QR con tokens seguros para validación de salidas
+- **Gestión de Retornos** - Seguimiento de material con y sin retorno
+- **Control de Estados** - 6 estados: PENDING, APPROVED, IN_TRANSIT, OVERDUE, CLOSED, CANCELLED
+- **Múltiples Ubicaciones** - Sucursales, almacenes, proyectos, obras
+- **Firmas Digitales** - Trazabilidad completa con approved_by, delivered_by, received_by
+- **Generación de PDF** - Templates profesionales para impresión (Pendiente)
+- **Sistema de Notificaciones** - Alertas por email/SMS (Pendiente)
+
+### Arquitectura Técnica
 - **7-Layer Architecture** - Router → Controller → Service → Repository → Model → Database
-- **JWT Authentication** - OAuth2 integration with Swagger UI
-- **Generic BaseRepository** - TypeVar[T] for reusable CRUD operations
-- **Granular Permissions System** - Entity-level access control with 5 hierarchical levels
-- **Geographic Data** - Pre-loaded countries (3) and states (114) with ISO codes
-- **4 Production-Ready Entities**:
-  - **Individuals** - Complete example with 40+ fields, JSONB skills system
-  - **Countries** - ISO 3166 countries
-  - **States** - States/provinces by country
-  - **Companies** - NEW: Full CRUD with 20 endpoints, TIN validation, advanced search
-- **Soft Delete & Audit** - Track created_by, updated_by, deleted_by on all entities
-- **Hybrid Configuration** - config.toml (public) + .env (secrets)
+- **JWT Authentication** - OAuth2 con Swagger UI integrado
+- **Autodiscovery de Permisos** - Sistema automático que detecta nuevos endpoints
+- **Permisos Granulares** - 4 niveles (Read, Update, Create, Delete) con user-level overrides
+- **Soft Delete & Audit** - Auditoría completa en todas las entidades
+- **BaseRepository Genérico** - CRUD reutilizable con TypeVar[T]
+
+### 📦 Entidades Implementadas
+
+**Completas (100%):**
+- **Individuals** - Personas/trabajadores (40+ campos, sistema JSONB)
+- **Countries** - Países ISO 3166 (3 precargados)
+- **States** - Estados/provincias (114 precargados)
+- **Companies** - Empresas con validación fiscal (20 endpoints)
+- **Branches** - Sucursales/ubicaciones genéricas
+- **Products** - Cache de productos frecuentes (8 categorías, 10 endpoints)
+
+**En Desarrollo:**
+- 🔄 **Vouchers** - Vales unificados ENTRY/EXIT (Siguiente)
+- 🔄 **VoucherDetails** - Líneas de artículos (máx 20 por vale)
+- 🔄 **EntryLogs** - Registro de entradas físicas
+- 🔄 **OutLogs** - Registro de escaneos QR
 
 ---
 
@@ -316,7 +342,7 @@ Instructions in [migrations/README.md](migrations/README.md#estructura-de-archiv
 
 ## What's New (v1.2.0)
 
-### User Permission Overrides (Phase 3) 🆕
+### User Permission Overrides (Phase 3) 
 Complete implementation of user-level permission overrides with temporal permissions support:
 - **10 admin endpoints** - Full CRUD for managing user-specific permissions
 - **3-tier priority system** - User overrides → Role templates → Default (none)
@@ -336,7 +362,7 @@ Complete implementation of user-level permission overrides with temporal permiss
 - `POST /admin/user-permissions/cleanup-expired` - Clean up expired permissions
 - `GET /admin/user-permissions/levels` - Get permission level information
 
-### Permission Autodiscovery (Phase 2) ✅
+### Permission Autodiscovery (Phase 2) 
 Automatic endpoint scanning and permission registration eliminates manual permission definition:
 - **Automatic sync on startup** - Permissions table always reflects actual API routes
 - **CLI command** - `python scripts.py autodiscover` with dry-run mode
@@ -344,7 +370,7 @@ Automatic endpoint scanning and permission registration eliminates manual permis
 - **Zero manual maintenance** - New entities auto-register permissions
 - **Intelligent inference** - Extracts entity/action from HTTP method + path
 
-### Companies Entity (v1.1.0) ✅
+### Companies Entity (v1.1.0) 
 A base entity that can be of great initial use for any project. The entity has the following features:
 - 20 production-ready endpoints
 - 7 granular permissions

@@ -245,6 +245,10 @@ PERMISSION_TEMPLATES = [
         "role_name": "Guest",
         "description": "Limited read access - Countries and states only"
     },
+    {
+        "role_name": "Checker",
+        "description": "Security guard - QR validation and limited read access for vouchers"
+    },
 ]
 
 
@@ -351,6 +355,18 @@ TEMPLATE_PERMISSION_MATRIX = {
         # Companies - Operaciones especiales
         {"entity": "companies", "action": "search", "level": 3, "scope": "all"},
         {"entity": "companies", "action": "view_statistics", "level": 1, "scope": "all"},  # Solo lectura
+        # Branches - lectura para seleccionar ubicación
+        {"entity": "branches", "action": "list", "level": 1, "scope": "all"},
+        {"entity": "branches", "action": "get", "level": 1, "scope": "all"},
+        # Vouchers - crear y gestionar propios (COLABORADOR role)
+        {"entity": "vouchers", "action": "create", "level": 3, "scope": "own"},
+        {"entity": "vouchers", "action": "list", "level": 1, "scope": "own"},
+        {"entity": "vouchers", "action": "get", "level": 1, "scope": "own"},
+        {"entity": "vouchers", "action": "update", "level": 2, "scope": "own"},
+        # Products - crear productos frecuentes
+        {"entity": "products", "action": "create", "level": 3, "scope": "all"},
+        {"entity": "products", "action": "list", "level": 1, "scope": "all"},
+        {"entity": "products", "action": "get", "level": 1, "scope": "all"},
     ],
 
     # Reader: Solo lectura (level 1) en todo
@@ -375,6 +391,23 @@ TEMPLATE_PERMISSION_MATRIX = {
 
     # Guest: Solo lectura de catálogos (countries/states)
     "Guest": [
+        {"entity": "countries", "action": "read", "level": 1, "scope": "all"},
+        {"entity": "states", "action": "read", "level": 1, "scope": "all"},
+    ],
+
+    # Checker: Security guard role - QR scanning and limited voucher read access
+    "Checker": [
+        # Vouchers - solo lectura para validación
+        {"entity": "vouchers", "action": "list", "level": 1, "scope": "all"},
+        {"entity": "vouchers", "action": "get", "level": 1, "scope": "all"},
+        # Out logs - crear escaneos y ver propios
+        {"entity": "out_logs", "action": "create", "level": 3, "scope": "all"},
+        {"entity": "out_logs", "action": "read", "level": 1, "scope": "own"},
+        # Branches - lectura para validar ubicaciones
+        {"entity": "branches", "action": "read", "level": 1, "scope": "all"},
+        # Products - lectura para validar artículos
+        {"entity": "products", "action": "read", "level": 1, "scope": "all"},
+        # Catálogos básicos
         {"entity": "countries", "action": "read", "level": 1, "scope": "all"},
         {"entity": "states", "action": "read", "level": 1, "scope": "all"},
     ],

@@ -22,6 +22,8 @@ from app.entities.individuals.routers.individual_router import router as new_ind
 from app.entities.countries.routers.country_router import router as country_router
 from app.entities.states.routers.state_router import router as state_router
 from app.entities.companies.routers.company_router import router as company_router
+from app.entities.branches.routers.branch_router import router as branch_router
+from app.entities.products.routers.product_router import router as product_router
 from app.shared.routers.admin_permissions_router import router as admin_permissions_router
 
 # Crear aplicación FastAPI con configuración de seguridad para Swagger
@@ -36,6 +38,8 @@ app = FastAPI(
         {"name": "Countries", "description": "Gestión de paises"},
         {"name": "States", "description": "Gestión de estados/provincias"},
         {"name": "Companies", "description": "Gestión de empresas"},
+        {"name": "Branches", "description": "Gestión de sucursales/ubicaciones"},
+        {"name": "Products", "description": "Gestión de productos (cache opcional)"},
         {"name": "Admin - User Permissions", "description": "Gestión de permisos a nivel de usuario (Fase 3)"},
         {"name": "health", "description": "Estado del sistema"}
     ]
@@ -67,6 +71,8 @@ app.include_router(new_individuals_router)
 app.include_router(country_router)
 app.include_router(state_router)
 app.include_router(company_router)
+app.include_router(branch_router)
+app.include_router(product_router)
 # Incluir router de administración de permisos (Phase 3)
 app.include_router(admin_permissions_router)
 
@@ -433,6 +439,9 @@ def startup_event():
         print(f"Error en autodiscovery: {e}")
         # No bloquear el inicio si falla autodiscovery
         pass
+
+    # La auto-asignación de permisos al Admin ahora se ejecuta automáticamente
+    # en initialize_database() -> initialize_permissions()
 
     db.close()
 
