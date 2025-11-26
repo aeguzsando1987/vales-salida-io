@@ -24,6 +24,8 @@ from app.entities.states.routers.state_router import router as state_router
 from app.entities.companies.routers.company_router import router as company_router
 from app.entities.branches.routers.branch_router import router as branch_router
 from app.entities.products.routers.product_router import router as product_router
+from app.entities.vouchers.routers.voucher_router import router as voucher_router
+from app.entities.voucher_details.routers.voucher_detail_router import router as voucher_detail_router
 from app.shared.routers.admin_permissions_router import router as admin_permissions_router
 
 # Crear aplicación FastAPI con configuración de seguridad para Swagger
@@ -40,6 +42,7 @@ app = FastAPI(
         {"name": "Companies", "description": "Gestión de empresas"},
         {"name": "Branches", "description": "Gestión de sucursales/ubicaciones"},
         {"name": "Products", "description": "Gestión de productos (cache opcional)"},
+        {"name": "Voucher Details", "description": "Gestión de líneas de detalle de vales (artículos)"},
         {"name": "Admin - User Permissions", "description": "Gestión de permisos a nivel de usuario (Fase 3)"},
         {"name": "health", "description": "Estado del sistema"}
     ]
@@ -73,6 +76,8 @@ app.include_router(state_router)
 app.include_router(company_router)
 app.include_router(branch_router)
 app.include_router(product_router)
+app.include_router(voucher_router)
+app.include_router(voucher_detail_router)
 # Incluir router de administración de permisos (Phase 3)
 app.include_router(admin_permissions_router)
 

@@ -235,7 +235,7 @@ def sync_permissions_to_db(discovered: List[Dict], db: Session, dry_run: bool = 
     }
 
 
-def autodiscover_and_sync(app: FastAPI, db: Session, dry_run: bool = False) -> Dict:
+def autodiscover_and_sync(app: FastAPI, db: Session, dry_run: bool = False, auto_assign: bool = True) -> Dict:
     """
     Ejecuta el proceso completo de autodiscovery y sincronizacion.
 
@@ -243,6 +243,7 @@ def autodiscover_and_sync(app: FastAPI, db: Session, dry_run: bool = False) -> D
         app: Instancia de FastAPI
         db: Sesion de base de datos
         dry_run: Si es True, solo muestra cambios sin aplicarlos
+        auto_assign: Si es True, asigna automáticamente permisos nuevos a roles
 
     Returns:
         Diccionario con estadisticas y permisos nuevos
@@ -275,4 +276,14 @@ def autodiscover_and_sync(app: FastAPI, db: Session, dry_run: bool = False) -> D
                 print(f"  + {perm['entity']}:{perm['action']} ({perm['http_method']} {perm['endpoint']})")
 
     print("\nAutodiscovery completado.")
+
+    # Auto-asignar permisos a roles si está habilitado
+    if auto_assign:
+        try:
+            from app.shared.test_auto_assign_permissions import auto_assign_after_discovery
+            stats = auto_assign_after_discovery(stats, db, dry_run=dry_run)
+        except Exception as e:
+            print(f"\nWARNING: Error en auto-asignacion: {e}")
+            print("Los permisos fueron descubiertos pero no asignados a roles.")
+
     return stats

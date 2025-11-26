@@ -424,7 +424,7 @@ def get_effective_permission(user_id: int, entity: str, action: str, db: Session
 
     Args:
         user_id: ID del usuario
-        entity: Nombre de la entidad (ej: "individuals")
+        entity: Nombre de la entidad (ej: "individuals", "voucher_details")
         action: Acción específica (ej: "create", "delete")
         db: Sesión de base de datos
 
@@ -439,6 +439,10 @@ def get_effective_permission(user_id: int, entity: str, action: str, db: Session
     Ejemplo:
         effective_level = get_effective_permission(5, "companies", "delete", db)
         # Retorna 4 si el usuario tiene permiso, 0 si no
+
+    Nota:
+        Normaliza entity reemplazando guiones bajos con guiones para compatibilidad
+        con rutas (voucher_details -> voucher-details).
     """
     from datetime import datetime
     from app.shared.models.user_permission import UserPermission
@@ -446,10 +450,14 @@ def get_effective_permission(user_id: int, entity: str, action: str, db: Session
     from app.shared.models.permission_template import PermissionTemplate
     from app.shared.models.permission_template_item import PermissionTemplateItem
 
+    # NORMALIZACIÓN: Convertir guiones bajos a guiones para compatibilidad
+    # Ejemplo: voucher_details -> voucher-details
+    normalized_entity = entity.replace("_", "-")
+
     # 1. PRIORIDAD ALTA: Buscar user-level permission (override)
     # Buscar el permiso específico entity:action
     permission = db.query(Permission).filter(
-        Permission.entity == entity,
+        Permission.entity == normalized_entity,
         Permission.action == action
     ).first()
 

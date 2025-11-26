@@ -2,20 +2,23 @@
 
 > Sistema para automatizar la emisión y gestión de vales de entrada y salida de material con validación QR, gestión de retornos y control de estados.
 
+# Tags
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12%2B-blue)](https://www.postgresql.org/)
 [![Development](https://img.shields.io/badge/Status-In%20Development-yellow)](https://github.com/aeguzsando1987/vales-salida-io)
 
+# Información General
 **Repositorio:** https://github.com/aeguzsando1987/vales-salida-io
 **Última Actualización:** 2025-11-19
-**Estado:** Fase 1 - 40% Completado
+**Estado de desarrollo:** Fase 1 - 40% Completado
+Aún en desarrollo. Se agregaron nuevas entidades y se implementaron las principales funcionalidades para vauchers de entrada y salida. Se agregaron los permisos para los endpoints y se implementaron los controladores y servicios para los vauchers. Aun hacen falta entidades de trazabalidad de transacciones y un demo de GUI.
 
 ---
 
-##  Características del Sistema
+##  Características Core del Sistema
 
-### Core Features
+### Core Feats.
 - **Validación QR** - Códigos QR con tokens seguros para validación de salidas
 - **Gestión de Retornos** - Seguimiento de material con y sin retorno
 - **Control de Estados** - 6 estados: PENDING, APPROVED, IN_TRANSIT, OVERDUE, CLOSED, CANCELLED
@@ -35,99 +38,107 @@
 ### 📦 Entidades Implementadas
 
 **Completas (100%):**
+- **Users** - Usuarios del sistema (20 endpoints)
 - **Individuals** - Personas/trabajadores (40+ campos, sistema JSONB)
 - **Countries** - Países ISO 3166 (3 precargados)
 - **States** - Estados/provincias (114 precargados)
 - **Companies** - Empresas con validación fiscal (20 endpoints)
 - **Branches** - Sucursales/ubicaciones genéricas
 - **Products** - Cache de productos frecuentes (8 categorías, 10 endpoints)
+- **Vaucher** - Vales unificados ENTRY/EXIT (20 endpoints)
+- **VaucherDetails** - Líneas de artículos (máx 20 por vale)
 
 **En Desarrollo:**
-- 🔄 **Vouchers** - Vales unificados ENTRY/EXIT (Siguiente)
-- 🔄 **VoucherDetails** - Líneas de artículos (máx 20 por vale)
-- 🔄 **EntryLogs** - Registro de entradas físicas
-- 🔄 **OutLogs** - Registro de escaneos QR
+- **EntryLogs** - Registro de entradas físicas
+- **OutLogs** - Registro de escaneos QR
+
 
 ---
 
-## Quick Start
+## Instalación rápida
 
-### Prerequisites
+### Requisitos
 
 - Python 3.8+
 - PostgreSQL 12+
 - Git
 
-### Installation
+### Instalación
 
 ```bash
-# Clone and setup
+# Clonar y configurar el proyecto
 git clone <repository-url> my-api-project
 cd my-api-project
 python -m venv venv
 
-# Activate virtual environment
+# Activar entorno virtual
 # Windows: venv\Scripts\activate
 # Linux/Mac: source venv/bin/activate
 
-# Install dependencies
+# Instalar dependencias
 pip install -r requirements.txt
 
-# Configure database
+# Configurar base de datos (opcional)
 createdb my_project_db
 ```
 
-### Configuration
+### Configuración
+
+El proyecto cuenta con un archivo `.env.example` que debe ser copiado y renombrado a `.env`. Este nuevo archivo debe ser configurado con los valores correspondientes a su entorno de desarrollo.
 
 Create `.env` file:
 
 ```env
 DATABASE_URL=postgresql://postgres:password@localhost:5432/my_project_db
-SECRET_KEY=your-super-secret-key-here
-DEFAULT_ADMIN_EMAIL=admin@yourcompany.com
-DEFAULT_ADMIN_PASSWORD=change-in-production
-PORT=8001
+SECRET_KEY=tu-super-mega-duper-llave-secreta-aqui
+DEFAULT_ADMIN_EMAIL=admin@tuempresa.com
+DEFAULT_ADMIN_PASSWORD=tu-super-secreto-password-aqui
+PORT=8001 # Puerto de la API. Por defecto es 8001 en .env.example
 ```
 
-Generate secure secret key:
+
+Puedes generar una llave segura con el siguiente comando:
 ```bash
-python generate_secret_key.py
+python scripts.py cmd_genkey
 ```
 
-### Run Server
+### Correr servidor
 
 ```bash
 python main.py
 ```
 
-**Access:**
-- Swagger UI: http://localhost:8001/docs
-- ReDoc: http://localhost:8001/redoc
+**Acceso:**
+- Swagger para documentación: http://localhost:8001/docs
+- ReDoc para documentación: http://localhost:8001/redoc
 
 **Default Admin:**
 - Email: `admin@tuempresa.com`
 - Password: `root`
 ---
 
-## Documentation
+## Documentación
 
-### Developer Guides
+### Guías de Desarrollo
 
-- **[PATRON_DESARROLLO.md](PATRON_DESARROLLO.md)** - Complete development pattern with examples
-- **[ADDING_ENTITIES.md](ADDING_ENTITIES.md)** - Step-by-step guide to add entities
+- **[PATRON_DESARROLLO.md](PATRON_DESARROLLO.md)** - Patron completo para desarrollo con ejemplos
+ **[ADDING_ENTITIES.md](ADDING_ENTITIES.md)** - Guia paso a paso en ingles para agregar nuevas entidades
 
-### Add New Entity (30-45 minutes)
+### Agregar nueva entidad: Descripción general
 
-1. Read [PATRON_DESARROLLO.md](PATRON_DESARROLLO.md)
-2. Create `app/entities/<entity_name>/` with 6 files:
-   - `models/<entity>_model.py`
-   - `schemas/<entity>_schemas.py`
-   - `repositories/<entity>_repository.py`
-   - `services/<entity>_service.py`
-   - `controllers/<entity>_controller.py`
-   - `routers/<entity>_router.py`
-3. Register router in `main.py`
-4. Test in Swagger UI
+1. Leer [PATRON_DESARROLLO.md](PATRON_DESARROLLO.md). Aqui encontrara detalles sobre el patron de desarrollo y como funciona el proyecto. 
+2. Leer [ADDING_ENTITIES.md](ADDING_ENTITIES.md). Aqui encontrara una guia paso a paso en ingles para agregar nuevas entidades en ingles.
+2. Crear `app/entities/<entity_name>/` con 6 archivos mas sus correspondientes __init__.py para importaciones correctas:
+   - `models/<entity>_model.py` para la definicion de la entidad
+   - `schemas/<entity>_schemas.py` para la validacion de la entidad
+   - `repositories/<entity>_repository.py` para la logica de negocio de la entidad
+   - `services/<entity>_service.py` para logicas adicionales y especiales de la entidad
+   - `controllers/<entity>_controller.py` para la logica de negocio de la entidad
+   - `routers/<entity>_router.py` para la logica de negocio de la entidad
+3. Registtrar router en `main.py`
+4. Correr `python main.py` y verificar que no haya errores
+5. Ir a http://localhost:8001/docs o http://localhost:8001/redoc
+6. Test en Swagger o ReDoc sus nuevos endpoints
 
 ---
 

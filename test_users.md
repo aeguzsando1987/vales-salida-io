@@ -6,5 +6,5 @@
 |---------|-------|----------|------|
 | **Admin** | alonso.guzman@gpamex.com | root | Admin (1) |
 | **Manager** | manager@test.com | test123 | Manager (2) |
-| **Collaborator** | collaborator@test.com | test123 | Collaborator (3) |
-| **Reader** | reader@test.com | test123 | Reader (4) |
+| **Supervisor** | supervisor@test.com | test123 | Supervisor (3) |
+| **Collaborator** | collaborator@test.com | test123 | Collaborator (4) |

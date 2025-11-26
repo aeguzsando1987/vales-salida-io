@@ -6,7 +6,7 @@ mientras permite funcionalidades extendidas del nuevo modelo.
 """
 
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Body
 from sqlalchemy.orm import Session
 
 # Importaciones compatibles con estructura existente
@@ -168,7 +168,56 @@ def delete_individual(
 
 @router.post("/with-user", summary="Crear individuo con usuario asociado")
 def create_individual_with_user(
-    data: dict,  # Mantenemos dict para compatibilidad total
+    data: dict = Body(
+        ...,
+        openapi_examples={
+            "empleado_colaborador": {
+                "summary": "Empleado Colaborador",
+                "description": "Crear empleado con usuario rol Collaborator (nivel 3)",
+                "value": {
+                    "user_email": "juan.perez@empresa.com",
+                    "user_name": "jperez",
+                    "user_password": "Password123!",
+                    "user_role": 3,
+                    "name": "Juan Carlos",
+                    "last_name": "Pérez",
+                    "email": "juan.perez@empresa.com",
+                    "phone": "5551234567",
+                    "address": "Calle Principal 123, Ciudad de México",
+                    "status": "active"
+                }
+            },
+            "supervisor": {
+                "summary": "Supervisor de Área",
+                "description": "Crear supervisor con usuario rol Manager (nivel 2)",
+                "value": {
+                    "user_email": "maria.garcia@empresa.com",
+                    "user_name": "mgarcia",
+                    "user_password": "SuperPass456!",
+                    "user_role": 2,
+                    "name": "María Elena",
+                    "last_name": "García",
+                    "email": "maria.garcia@empresa.com",
+                    "phone": "5559876543",
+                    "address": "Av. Reforma 456, Monterrey",
+                    "status": "active"
+                }
+            },
+            "minimo_requerido": {
+                "summary": "Campos Mínimos Requeridos",
+                "description": "Solo campos obligatorios para crear individuo con usuario",
+                "value": {
+                    "user_email": "nuevo.usuario@empresa.com",
+                    "user_name": "nusuario",
+                    "user_password": "Pass123!",
+                    "user_role": 4,
+                    "name": "Roberto",
+                    "last_name": "López",
+                    "email": "roberto.lopez@empresa.com"
+                }
+            }
+        }
+    ),
     controller: IndividualController = Depends(get_individual_controller),
     current_user=Depends(require_manager_or_admin)
 ):
@@ -180,6 +229,43 @@ def create_individual_with_user(
     - Validaciones de emails únicos
     - Estructura de respuesta idéntica
     - Rollback en caso de error
+
+    Estructura del Request Body (formato flat/legacy):
+    ```json
+    {
+        "user_email": "email@empresa.com",
+        "user_name": "nombre_usuario",
+        "user_password": "contraseña",
+        "user_role": 3,
+        "name": "Nombre Completo",
+        "last_name": "Apellido",
+        "email": "email@empresa.com",
+        "phone": "5551234567",
+        "address": "Dirección completa",
+        "status": "active"
+    }
+    ```
+
+    Campos obligatorios Usuario:
+    - user_email: Email del usuario para login
+    - user_name: Nombre de usuario
+    - user_password: Contraseña
+    - user_role: Rol (1-5)
+
+    Campos obligatorios Individual:
+    - name: Nombre completo
+    - last_name: Apellido
+    - email: Email de contacto
+
+    Roles disponibles:
+    - 1: Admin (acceso total)
+    - 2: Manager (gestión completa)
+    - 3: Collaborator (operaciones estándar)
+    - 4: Reader (solo lectura)
+    - 5: Guest (acceso limitado)
+
+    Campos opcionales:
+    - phone, address, status
     """
     return controller.create_individual_with_user(data)
 

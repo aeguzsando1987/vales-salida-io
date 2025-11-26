@@ -5,14 +5,24 @@ CLI de Utilidades para FastAPI Template
 Script consolidado para tareas comunes de desarrollo y administración.
 
 Uso:
-    python scripts.py genkey         - Generar claves seguras
-    python scripts.py createdb       - Crear base de datos PostgreSQL
-    python scripts.py start          - Iniciar servidor
-    python scripts.py restart        - Reiniciar servidor
-    python scripts.py truncate       - Truncar base de datos (metodo seguro)
-    python scripts.py truncate-hard  - Truncar base de datos (metodo alternativo)
-    python scripts.py autodiscover   - Escanear endpoints y sincronizar permisos
-    python scripts.py help           - Mostrar ayuda
+    python scripts.py genkey              - Generar claves seguras
+    python scripts.py createdb            - Crear base de datos PostgreSQL
+    python scripts.py start               - Iniciar servidor
+    python scripts.py restart             - Reiniciar servidor
+    python scripts.py truncate            - Truncar base de datos (metodo seguro)
+    python scripts.py truncate-hard       - Truncar base de datos (metodo alternativo)
+    python scripts.py autodiscover        - Escanear endpoints y sincronizar permisos
+    python scripts.py assign-permissions  - Asignar permisos a roles automaticamente
+    python scripts.py help                - Mostrar ayuda
+
+Opciones para assign-permissions:
+    --dry-run                   - Vista previa sin aplicar cambios
+    --entity=<nombre>          - Asignar permisos solo de una entidad específica
+
+Ejemplos:
+    python scripts.py assign-permissions
+    python scripts.py assign-permissions --dry-run
+    python scripts.py assign-permissions --entity=voucher_details
 
 Autor: E. Guzman
 """
@@ -575,6 +585,88 @@ def cmd_autodiscover():
         sys.exit(1)
 
 
+# ==================== COMANDO: ASIGNAR PERMISOS ====================
+
+def cmd_assign_permissions():
+    """Asigna permisos no asignados a todos los roles del sistema."""
+    print("=" * 70)
+    print("AUTO-ASIGNACION DE PERMISOS A ROLES - PHASE 2.5")
+    print("=" * 70)
+
+    # Verificar si es dry-run
+    dry_run = '--dry-run' in sys.argv
+
+    # Verificar si se especifica una entidad
+    entity_name = None
+    for arg in sys.argv:
+        if arg.startswith('--entity='):
+            entity_name = arg.split('=')[1]
+            break
+
+    if dry_run:
+        print("\nMODO: DRY RUN (solo visualizacion, sin cambios)")
+    else:
+        print("\nMODO: PRODUCCION (aplicara cambios a la base de datos)")
+
+    if entity_name:
+        print(f"\nENTIDAD ESPECIFICA: {entity_name}")
+    else:
+        print("\nPROCESANDO: Todos los permisos sin asignar")
+
+    print("\nCargando aplicacion...")
+
+    try:
+        # Importar dependencias
+        from database import SessionLocal
+        from app.shared.test_auto_assign_permissions import (
+            auto_assign_new_permissions,
+            assign_permissions_for_entity
+        )
+
+        # Crear sesion de base de datos
+        db = SessionLocal()
+
+        print("OK: Aplicacion cargada correctamente")
+
+        # Ejecutar asignacion
+        if entity_name:
+            # Asignar permisos de una entidad específica
+            stats = assign_permissions_for_entity(entity_name, db, dry_run=dry_run)
+        else:
+            # Asignar todos los permisos sin asignaciones
+            stats = auto_assign_new_permissions(db, dry_run=dry_run)
+
+        # Resumen final
+        print("\n" + "=" * 70)
+        if dry_run:
+            print("VISTA PREVIA COMPLETADA")
+            print("=" * 70)
+            print("\nEjecuta sin --dry-run para aplicar los cambios:")
+            print("  python scripts.py assign-permissions")
+            if entity_name:
+                print(f"  python scripts.py assign-permissions --entity={entity_name}")
+        else:
+            print("ASIGNACION COMPLETADA EXITOSAMENTE")
+            print("=" * 70)
+            print(f"\nAsignaciones creadas: {stats.get('assignments_created', 0)}")
+
+        # Cerrar sesion
+        db.close()
+
+    except ImportError as e:
+        print(f"\nError: No se pudo importar modulo requerido")
+        print(f"Detalle: {e}")
+        print("\nVerifica que:")
+        print("  - El modulo test_auto_assign_permissions.py exista en app/shared/")
+        print("  - La base de datos este accesible")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\nError inesperado: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
 # ==================== COMANDO: AYUDA ====================
 
 def cmd_help():
@@ -600,6 +692,7 @@ def main():
         'truncate': cmd_truncate,
         'truncate-hard': cmd_truncate_hard,
         'autodiscover': cmd_autodiscover,
+        'assign-permissions': cmd_assign_permissions,
         'help': cmd_help,
         '--help': cmd_help,
         '-h': cmd_help,
@@ -610,14 +703,15 @@ def main():
     else:
         print(f"Error: Comando desconocido '{command}'")
         print("\nComandos disponibles:")
-        print("  genkey         - Generar claves seguras")
-        print("  createdb       - Crear base de datos PostgreSQL")
-        print("  start          - Iniciar servidor")
-        print("  restart        - Reiniciar servidor")
-        print("  truncate       - Truncar base de datos (metodo seguro)")
-        print("  truncate-hard  - Truncar base de datos (metodo alternativo)")
-        print("  autodiscover   - Escanear endpoints y sincronizar permisos")
-        print("  help           - Mostrar ayuda")
+        print("  genkey              - Generar claves seguras")
+        print("  createdb            - Crear base de datos PostgreSQL")
+        print("  start               - Iniciar servidor")
+        print("  restart             - Reiniciar servidor")
+        print("  truncate            - Truncar base de datos (metodo seguro)")
+        print("  truncate-hard       - Truncar base de datos (metodo alternativo)")
+        print("  autodiscover        - Escanear endpoints y sincronizar permisos")
+        print("  assign-permissions  - Asignar permisos a roles automaticamente")
+        print("  help                - Mostrar ayuda")
         sys.exit(1)
 
 
