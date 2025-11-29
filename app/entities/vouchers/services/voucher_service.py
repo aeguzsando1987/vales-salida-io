@@ -16,6 +16,8 @@ import hashlib
 import os
 
 from app.entities.vouchers.models.voucher import Voucher, VoucherStatusEnum, VoucherTypeEnum
+from app.entities.vouchers.models.entry_log import EntryLog, EntryStatusEnum
+from app.entities.vouchers.models.out_log import OutLog, ValidationStatusEnum
 from app.entities.vouchers.schemas.voucher_schemas import (
     VoucherCreate,
     VoucherUpdate,
@@ -26,6 +28,7 @@ from app.entities.vouchers.repositories.voucher_repository import VoucherReposit
 from app.entities.companies.models.company import Company
 from app.entities.branches.models.branch import Branch
 from app.entities.individuals.models.individual import Individual
+from database import User
 
 from app.shared.exceptions import (
     EntityNotFoundError,
@@ -121,6 +124,321 @@ class VoucherService:
         """
         expected = self._generate_qr_token(voucher_id)
         return token == expected
+
+    # ==================== LOG CREATION (PRIVATE METHODS) ====================
+
+    def _create_entry_log(
+        self,
+        voucher: Voucher,
+        entry_status: EntryStatusEnum,
+        received_by_id: int,
+        missing_items_description: Optional[str],
+        notes: Optional[str],
+        created_by_user_id: int
+    ) -> EntryLog:
+        """
+        Crea un entry_log para el voucher (método privado)
+
+        Args:
+            voucher: Voucher al que pertenece
+            entry_status: COMPLETE, INCOMPLETE o DAMAGED
+            received_by_id: ID de quien recibe
+            missing_items_description: Descripción de faltantes (obligatorio si INCOMPLETE/DAMAGED)
+            notes: Observaciones
+            created_by_user_id: Usuario que registra
+
+        Returns:
+            EntryLog creado
+
+        Raises:
+            EntityValidationError: Si ya existe entry_log o validaciones fallan
+        """
+        # Validar que no exista entry_log previo
+        existing_log = self.db.query(EntryLog).filter(
+            EntryLog.voucher_id == voucher.id
+        ).first()
+
+        if existing_log:
+            raise EntityValidationError(
+                "EntryLog",
+                {"voucher_id": f"Ya existe un entry_log para el voucher {voucher.folio}"}
+            )
+
+        # Validar received_by existe
+        receiver = self.db.query(Individual).filter(
+            Individual.id == received_by_id
+        ).first()
+        if not receiver:
+            raise EntityNotFoundError("Individual", received_by_id)
+
+        # Validar missing_items_description si status != COMPLETE
+        if entry_status in [EntryStatusEnum.INCOMPLETE, EntryStatusEnum.DAMAGED]:
+            if not missing_items_description or len(missing_items_description.strip()) == 0:
+                raise EntityValidationError(
+                    "EntryLog",
+                    {"missing_items_description": "Obligatorio cuando entry_status es INCOMPLETE o DAMAGED"}
+                )
+
+        # Crear entry_log
+        entry_log = EntryLog(
+            voucher_id=voucher.id,
+            entry_status=entry_status,
+            received_by_id=received_by_id,
+            missing_items_description=missing_items_description,
+            notes=notes,
+            created_by=created_by_user_id,
+            created_at=datetime.utcnow()
+        )
+
+        self.db.add(entry_log)
+        return entry_log
+
+    def _create_out_log(
+        self,
+        voucher: Voucher,
+        validation_status: ValidationStatusEnum,
+        scanned_by_id: int,
+        observations: Optional[str],
+        created_by_user_id: int
+    ) -> OutLog:
+        """
+        Crea un out_log para el voucher (método privado)
+
+        Args:
+            voucher: Voucher al que pertenece
+            validation_status: APPROVED, REJECTED o OBSERVATION
+            scanned_by_id: ID del vigilante que escanea
+            observations: Observaciones de inspección visual
+            created_by_user_id: Usuario que registra
+
+        Returns:
+            OutLog creado
+
+        Raises:
+            EntityValidationError: Si ya existe out_log
+        """
+        # Validar que no exista out_log previo
+        existing_log = self.db.query(OutLog).filter(
+            OutLog.voucher_id == voucher.id
+        ).first()
+
+        if existing_log:
+            raise EntityValidationError(
+                "OutLog",
+                {"voucher_id": f"Ya existe un out_log para el voucher {voucher.folio}"}
+            )
+
+        # Validar scanned_by existe
+        guard = self.db.query(Individual).filter(
+            Individual.id == scanned_by_id
+        ).first()
+        if not guard:
+            raise EntityNotFoundError("Individual", scanned_by_id)
+
+        # Crear out_log
+        out_log = OutLog(
+            voucher_id=voucher.id,
+            validation_status=validation_status,
+            scanned_by_id=scanned_by_id,
+            observations=observations,
+            created_by=created_by_user_id,
+            created_at=datetime.utcnow()
+        )
+
+        self.db.add(out_log)
+        return out_log
+
+    # ==================== LOG OPERATIONS (PUBLIC METHODS) ====================
+
+    def confirm_entry_voucher(
+        self,
+        voucher_id: int,
+        entry_status: EntryStatusEnum,
+        received_by_id: int,
+        missing_items_description: Optional[str] = None,
+        notes: Optional[str] = None,
+        confirming_user_id: int = 1
+    ) -> Voucher:
+        """
+        Confirma recepción física de material (crea entry_log automáticamente)
+
+        Flujos:
+        - ENTRY: PENDING → (registra entry_log) → CLOSED/OVERDUE
+        - EXIT con retorno: IN_TRANSIT → (registra entry_log) → CLOSED/OVERDUE
+        - EXIT intercompañía: IN_TRANSIT → (registra entry_log) → CLOSED/OVERDUE
+
+        Transiciones de estado:
+        - Si entry_status=COMPLETE → voucher.status=CLOSED
+        - Si entry_status=INCOMPLETE/DAMAGED → voucher.status=OVERDUE
+
+        Args:
+            voucher_id: ID del voucher
+            entry_status: COMPLETE, INCOMPLETE o DAMAGED
+            received_by_id: ID de quien recibe el material
+            missing_items_description: Descripción de faltantes (obligatorio si INCOMPLETE/DAMAGED)
+            notes: Observaciones adicionales
+            confirming_user_id: Usuario que confirma (default: 1 = Admin)
+
+        Returns:
+            Voucher actualizado con entry_log creado
+
+        Raises:
+            EntityNotFoundError: Si voucher no existe
+            BusinessRuleError: Si estado no permite confirmar entrada
+            EntityValidationError: Si validaciones fallan
+        """
+        voucher = self.get_voucher(voucher_id)
+
+        # Validar estados válidos
+        valid_statuses = [
+            VoucherStatusEnum.PENDING,      # ENTRY puro
+            VoucherStatusEnum.IN_TRANSIT,   # EXIT con retorno
+            VoucherStatusEnum.APPROVED      # Casos especiales
+        ]
+
+        if voucher.status not in valid_statuses:
+            raise BusinessRuleError(
+                f"No se puede confirmar entrada desde estado {voucher.status.value}. "
+                f"Estados válidos: {[s.value for s in valid_statuses]}"
+            )
+
+        # Crear entry_log (validaciones internas)
+        self._create_entry_log(
+            voucher=voucher,
+            entry_status=entry_status,
+            received_by_id=received_by_id,
+            missing_items_description=missing_items_description,
+            notes=notes,
+            created_by_user_id=confirming_user_id
+        )
+
+        # Actualizar voucher.received_by_id (firma digital)
+        voucher.received_by_id = received_by_id
+
+        # Actualizar fecha de retorno si aplica
+        if voucher.with_return:
+            voucher.actual_return_date = date.today()
+
+        # Transición de estado basada en entry_status
+        if entry_status == EntryStatusEnum.COMPLETE:
+            voucher.status = VoucherStatusEnum.CLOSED
+        else:
+            # INCOMPLETE o DAMAGED
+            voucher.status = VoucherStatusEnum.OVERDUE
+
+        # Auditoría
+        voucher.updated_by = confirming_user_id
+        voucher.updated_at = datetime.utcnow()
+
+        # Commit atómico (voucher + entry_log)
+        self.db.commit()
+        self.db.refresh(voucher)
+
+        return voucher
+
+    def validate_exit_voucher(
+        self,
+        voucher_id: int,
+        validation_status: ValidationStatusEnum,
+        scanned_by_id: int,
+        observations: Optional[str] = None,
+        qr_token: Optional[str] = None,
+        validating_user_id: int = 1
+    ) -> Voucher:
+        """
+        Valida salida de material mediante QR (crea out_log automáticamente)
+
+        Flujos:
+        - EXIT sin retorno: APPROVED → (crea out_log) → CLOSED
+        - EXIT con retorno: APPROVED → (crea out_log) → IN_TRANSIT
+        - EXIT intercompañía: APPROVED → (crea out_log) → IN_TRANSIT
+
+        Args:
+            voucher_id: ID del voucher
+            validation_status: APPROVED, REJECTED o OBSERVATION
+            scanned_by_id: ID del vigilante
+            observations: Observaciones de inspección visual
+            qr_token: Token QR (opcional, para validar)
+            validating_user_id: Usuario que valida (default: 1 = Admin)
+
+        Returns:
+            Voucher actualizado con out_log creado
+
+        Raises:
+            EntityNotFoundError: Si voucher no existe
+            BusinessRuleError: Si estado no permite validar salida
+            EntityValidationError: Si QR token es inválido
+        """
+        voucher = self.get_voucher(voucher_id)
+
+        # Validar estado
+        if voucher.status != VoucherStatusEnum.APPROVED:
+            raise BusinessRuleError(
+                f"Solo vouchers APPROVED pueden validar salida. Estado actual: {voucher.status.value}"
+            )
+
+        # Validar QR token si se proporciona (opcional)
+        if qr_token:
+            if not self.validate_qr_token(voucher.id, qr_token):
+                raise EntityValidationError(
+                    "OutLog",
+                    {"qr_token": "Token QR inválido o expirado"}
+                )
+
+        # Crear out_log (validaciones internas)
+        self._create_out_log(
+            voucher=voucher,
+            validation_status=validation_status,
+            scanned_by_id=scanned_by_id,
+            observations=observations,
+            created_by_user_id=validating_user_id
+        )
+
+        # Transición de estado basada en with_return
+        if validation_status == ValidationStatusEnum.APPROVED:
+            if voucher.with_return:
+                # EXIT con retorno → IN_TRANSIT
+                voucher.status = VoucherStatusEnum.IN_TRANSIT
+            else:
+                # EXIT sin retorno → CLOSED directo
+                voucher.status = VoucherStatusEnum.CLOSED
+        else:
+            # REJECTED u OBSERVATION → permanece APPROVED (requiere acción)
+            pass
+
+        # Auditoría
+        voucher.updated_by = validating_user_id
+        voucher.updated_at = datetime.utcnow()
+
+        # Commit atómico (voucher + out_log)
+        self.db.commit()
+        self.db.refresh(voucher)
+
+        return voucher
+
+    def get_voucher_logs(self, voucher_id: int) -> dict:
+        """
+        Obtiene los logs de auditoría de un voucher
+
+        Returns:
+            Dict con entry_log y out_log (None si no existen)
+        """
+        voucher = self.get_voucher(voucher_id)
+
+        entry_log = self.db.query(EntryLog).filter(
+            EntryLog.voucher_id == voucher.id
+        ).first()
+
+        out_log = self.db.query(OutLog).filter(
+            OutLog.voucher_id == voucher.id
+        ).first()
+
+        return {
+            "voucher_id": voucher.id,
+            "folio": voucher.folio,
+            "entry_log": entry_log,
+            "out_log": out_log
+        }
 
     # ==================== CRUD OPERATIONS ====================
 
@@ -380,55 +698,6 @@ class VoucherService:
                 voucher.internal_notes = f"[APROBACIÓN] {approve_data.notes}"
 
         voucher.updated_by = approved_by_user_id
-        voucher.updated_at = datetime.utcnow()
-
-        self.db.commit()
-        self.db.refresh(voucher)
-
-        return voucher
-
-    def start_transit(
-        self,
-        voucher_id: int,
-        scanned_by_user_id: int
-    ) -> Voucher:
-        """
-        Inicia tránsito de un voucher: APPROVED → IN_TRANSIT
-
-        Esto ocurre cuando:
-        - EXIT con retorno es escaneado por vigilancia
-        - EXIT intercompañía es escaneado
-
-        NO aplica para EXIT sin retorno (va directo a CLOSED)
-
-        Args:
-            voucher_id: ID del voucher
-            scanned_by_user_id: Usuario que escanea
-
-        Returns:
-            Voucher en tránsito
-
-        Raises:
-            BusinessRuleError: Si no está en APPROVED o no requiere tránsito
-        """
-        voucher = self.get_voucher(voucher_id)
-
-        # Validar estado
-        if voucher.status != VoucherStatusEnum.APPROVED:
-            raise BusinessRuleError(
-                f"Solo vouchers APPROVED pueden iniciar tránsito. Estado actual: {voucher.status.value}"
-            )
-
-        # Validar que sea EXIT con retorno o intercompañía
-        if voucher.voucher_type == VoucherTypeEnum.EXIT:
-            if not voucher.with_return:
-                raise BusinessRuleError(
-                    "EXIT sin retorno va directo a CLOSED al escanear"
-                )
-
-        # Cambiar estado
-        voucher.status = VoucherStatusEnum.IN_TRANSIT
-        voucher.updated_by = scanned_by_user_id
         voucher.updated_at = datetime.utcnow()
 
         self.db.commit()

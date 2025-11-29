@@ -5,9 +5,11 @@ Validación de entrada/salida para vales de entrada y salida.
 """
 from typing import Optional, List
 from datetime import datetime, date
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.entities.vouchers.models.voucher import VoucherTypeEnum, VoucherStatusEnum
+from app.entities.vouchers.models.entry_log import EntryStatusEnum
+from app.entities.vouchers.models.out_log import ValidationStatusEnum
 
 
 # ==================== SCHEMAS BASE ====================
@@ -70,6 +72,85 @@ class VoucherCancel(BaseModel):
                                      description="Motivo de cancelación")
 
 
+# ==================== SCHEMAS DE LOGS DE AUDITORÍA ====================
+
+# -------- EntryLog Schemas --------
+
+class EntryLogBase(BaseModel):
+    """Schema base para EntryLog"""
+    entry_status: EntryStatusEnum = Field(..., description="COMPLETE, INCOMPLETE o DAMAGED")
+    received_by_id: int = Field(..., gt=0, description="ID de quien recibe el material")
+    missing_items_description: Optional[str] = Field(None, max_length=2000,
+                                                     description="Requerido si INCOMPLETE/DAMAGED")
+    notes: Optional[str] = Field(None, max_length=2000, description="Observaciones")
+
+
+class EntryLogCreate(EntryLogBase):
+    """
+    Schema para crear un entry_log
+
+    Se valida que missing_items_description sea obligatorio si entry_status != COMPLETE
+    """
+
+    @model_validator(mode='after')
+    def validate_missing_items(self):
+        """Si entry_status != COMPLETE, missing_items_description es obligatorio"""
+        if self.entry_status in [EntryStatusEnum.INCOMPLETE, EntryStatusEnum.DAMAGED]:
+            if not self.missing_items_description or len(self.missing_items_description.strip()) == 0:
+                raise ValueError("missing_items_description es obligatorio cuando entry_status es INCOMPLETE o DAMAGED")
+        return self
+
+
+class EntryLogResponse(BaseModel):
+    """Schema de respuesta para EntryLog"""
+    id: int
+    voucher_id: int
+    entry_status: EntryStatusEnum
+    received_by_id: int
+    received_by_name: Optional[str] = None  # Nombre del individual
+    missing_items_description: Optional[str]
+    notes: Optional[str]
+    created_at: datetime
+    created_by: int
+    creator_name: Optional[str] = None  # Nombre del usuario creador
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+# -------- OutLog Schemas --------
+
+class OutLogBase(BaseModel):
+    """Schema base para OutLog"""
+    validation_status: ValidationStatusEnum = Field(..., description="APPROVED, REJECTED o OBSERVATION")
+    scanned_by_id: int = Field(..., gt=0, description="ID de quien validó (vigilante)")
+    observations: Optional[str] = Field(None, max_length=2000,
+                                       description="Notas de inspección visual")
+
+
+class OutLogCreate(OutLogBase):
+    """Schema para crear un out_log"""
+    pass
+
+
+class OutLogResponse(BaseModel):
+    """Schema de respuesta para OutLog"""
+    id: int
+    voucher_id: int
+    validation_status: ValidationStatusEnum
+    scanned_by_id: int
+    scanned_by_name: Optional[str] = None  # Nombre del individual
+    observations: Optional[str]
+    created_at: datetime
+    created_by: int
+    creator_name: Optional[str] = None  # Nombre del usuario creador
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
 # ==================== SCHEMAS DE RESPUESTA ====================
 
 class VoucherResponse(BaseModel):
@@ -115,6 +196,7 @@ class VoucherDetailedResponse(VoucherResponse):
     Schema de respuesta con información expandida (nombres)
 
     Para mostrar en detalle con nombres de las relaciones.
+    Incluye logs de auditoría si existen.
     """
     company_name: Optional[str] = None
     origin_branch_name: Optional[str] = None
@@ -126,6 +208,10 @@ class VoucherDetailedResponse(VoucherResponse):
     received_by_name: Optional[str] = None
 
     creator_name: Optional[str] = None
+
+    # Logs de auditoría (uno a uno)
+    entry_log: Optional[EntryLogResponse] = None
+    out_log: Optional[OutLogResponse] = None
 
 
 class VoucherWithDetailsResponse(VoucherDetailedResponse):

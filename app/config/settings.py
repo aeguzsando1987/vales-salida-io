@@ -141,6 +141,26 @@ class Settings(BaseSettings):
     # ==================== ENVIRONMENT ====================
     environment: str = Field(default="development", env="ENVIRONMENT")
 
+    # ==================== SCHEDULER ====================
+    scheduler_enabled: bool = Field(
+        default=True,
+        description="Activar/desactivar scheduler automático"
+    )
+
+    scheduler_overdue_hour: int = Field(
+        default=0,
+        ge=0,
+        le=23,
+        description="Hora de ejecución del job de vencimientos (0-23 UTC)"
+    )
+
+    scheduler_overdue_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        description="Minuto de ejecución del job de vencimientos (0-59)"
+    )
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
@@ -270,6 +290,11 @@ class Settings(BaseSettings):
             ("cache", "enabled"): "cache_enabled",
             ("cache", "backend"): "cache_backend",
             ("cache", "default_ttl"): "cache_default_ttl",
+
+            # Scheduler
+            ("scheduler", "enabled"): "scheduler_enabled",
+            ("scheduler", "overdue_check_hour"): "scheduler_overdue_hour",
+            ("scheduler", "overdue_check_minute"): "scheduler_overdue_minute",
         }
 
         for toml_path, setting_name in mappings.items():

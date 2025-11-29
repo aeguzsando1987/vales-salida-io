@@ -27,9 +27,16 @@ from app.entities.vouchers.schemas.voucher_schemas import (
     VoucherWithDetailsResponse,
     VoucherListResponse,
     VoucherSearchResponse,
-    VoucherStatistics
+    VoucherStatistics,
+    # Schemas de logs (nuevos)
+    EntryLogCreate,
+    EntryLogResponse,
+    OutLogCreate,
+    OutLogResponse
 )
 from app.entities.vouchers.models.voucher import VoucherStatusEnum, VoucherTypeEnum
+from app.entities.vouchers.models.entry_log import EntryStatusEnum
+from app.entities.vouchers.models.out_log import ValidationStatusEnum
 
 
 # ==================== ROUTER CONFIGURATION ====================
@@ -313,6 +320,113 @@ def cancel_voucher(
     """
     controller = VoucherController(db)
     return controller.cancel(voucher_id, cancel_data, current_user.id)
+
+
+# ==================== LOG ENDPOINTS (AUDITORÍA) ====================
+
+@router.post(
+    "/{voucher_id}/confirm-entry",
+    response_model=VoucherDetailedResponse,
+    summary="Confirmar recepción de material",
+    description="Crea entry_log automáticamente y actualiza estado según resultado"
+)
+def confirm_entry(
+    voucher_id: int = Path(..., gt=0, description="ID del voucher"),
+    entry_data: EntryLogCreate = Body(..., description="Datos de recepción"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "confirm_entry", min_level=3))
+):
+    """
+    Confirma recepción física de material (crea entry_log automáticamente).
+
+    Flujos válidos:
+    - ENTRY: PENDING → CLOSED/OVERDUE (según entry_status)
+    - EXIT con retorno: IN_TRANSIT → CLOSED/OVERDUE (según entry_status)
+    - EXIT intercompañía: IN_TRANSIT → CLOSED/OVERDUE (según entry_status)
+
+    Transiciones de estado:
+    - Si entry_status=COMPLETE → voucher.status=CLOSED
+    - Si entry_status=INCOMPLETE/DAMAGED → voucher.status=OVERDUE
+
+    Validaciones:
+    - Voucher existe y estado permite confirmar entrada
+    - received_by_id existe
+    - Si entry_status != COMPLETE, missing_items_description es obligatorio
+    - No existe entry_log previo para este voucher
+
+    Permisos requeridos: vouchers:confirm_entry (nivel 3+)
+    Roles permitidos: Admin, Manager, Supervisor
+    """
+    controller = VoucherController(db)
+    return controller.confirm_entry(voucher_id, entry_data, current_user.id)
+
+
+@router.post(
+    "/{voucher_id}/validate-exit",
+    response_model=VoucherDetailedResponse,
+    summary="Validar salida de material (QR scan)",
+    description="Crea out_log automáticamente y actualiza estado según tipo de salida"
+)
+def validate_exit(
+    voucher_id: int = Path(..., gt=0, description="ID del voucher"),
+    validation_data: OutLogCreate = Body(..., description="Datos de validación"),
+    qr_token: Optional[str] = Query(None, description="Token QR (opcional)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "validate_exit", min_level=3))
+):
+    """
+    Valida salida de material mediante QR (crea out_log automáticamente).
+
+    Flujos válidos:
+    - EXIT sin retorno: APPROVED → CLOSED (directo)
+    - EXIT con retorno: APPROVED → IN_TRANSIT
+    - EXIT intercompañía: APPROVED → IN_TRANSIT
+
+    Validaciones:
+    - Voucher existe y status=APPROVED
+    - scanned_by_id existe
+    - QR token válido (si se proporciona)
+    - No existe out_log previo para este voucher
+
+    Permisos requeridos: vouchers:validate_exit (nivel 3+)
+    Roles permitidos: Admin, Manager, Supervisor, Checker
+    """
+    controller = VoucherController(db)
+    return controller.validate_exit(voucher_id, validation_data, qr_token, current_user.id)
+
+
+@router.get(
+    "/{voucher_id}/logs",
+    response_model=dict,
+    summary="Obtener bitácora del voucher",
+    description="Retorna entry_log y out_log (PRIVADO - solo Admin/Manager/Supervisor)"
+)
+def get_voucher_logs(
+    voucher_id: int = Path(..., gt=0, description="ID del voucher"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "view_logs", min_level=2))
+):
+    """
+    Obtiene la bitácora completa de un voucher (entry_log + out_log).
+
+    ENDPOINT PRIVADO - Solo visible para Admin/Manager/Supervisor.
+
+    Retorna:
+    {
+        "voucher_id": int,
+        "folio": str,
+        "entry_log": EntryLogResponse | null,
+        "out_log": OutLogResponse | null
+    }
+
+    Validaciones:
+    - Voucher existe
+
+    Permisos requeridos: vouchers:view_logs (nivel 2+)
+    Roles permitidos: Admin, Manager, Supervisor
+    """
+    controller = VoucherController(db)
+    return controller.get_logs(voucher_id)
 
 
 # ==================== SEARCH & FILTER ENDPOINTS ====================

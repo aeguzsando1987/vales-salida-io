@@ -2,7 +2,13 @@
 Datos de Paises y Estados/Provincias/Departamentos
 
 Datos precargados para inicializacion de la base de datos.
-Incluye: Estados Unidos, Mexico y Colombia con todos sus estados/departamentos.
+
+Incluye 5 países con 158 estados/provincias/departamentos:
+- Estados Unidos: 50 estados
+- México: 32 estados
+- Colombia: 33 departamentos
+- España: 19 comunidades autónomas
+- Argentina: 24 provincias
 """
 
 COUNTRIES_STATES_DATA = {
@@ -151,6 +157,71 @@ COUNTRIES_STATES_DATA = {
             {"name": "Valle del Cauca", "code": "VAC"},
             {"name": "Vaupes", "code": "VAU"},
             {"name": "Vichada", "code": "VID"},
+        ]
+    },
+    "Spain": {
+        "name": "Spain",
+        "iso_code_2": "ES",
+        "iso_code_3": "ESP",
+        "numeric_code": "724",
+        "phone_code": "+34",
+        "currency_code": "EUR",
+        "currency_name": "Euro",
+        "states": [
+            {"name": "Andalucía", "code": "AN"},
+            {"name": "Aragón", "code": "AR"},
+            {"name": "Asturias", "code": "AS"},
+            {"name": "Baleares", "code": "IB"},
+            {"name": "Canarias", "code": "CN"},
+            {"name": "Cantabria", "code": "CB"},
+            {"name": "Castilla-La Mancha", "code": "CM"},
+            {"name": "Castilla y León", "code": "CL"},
+            {"name": "Cataluña", "code": "CT"},
+            {"name": "Ceuta", "code": "CE"},
+            {"name": "Comunidad Valenciana", "code": "VC"},
+            {"name": "Extremadura", "code": "EX"},
+            {"name": "Galicia", "code": "GA"},
+            {"name": "La Rioja", "code": "RI"},
+            {"name": "Madrid", "code": "MD"},
+            {"name": "Melilla", "code": "ML"},
+            {"name": "Murcia", "code": "MC"},
+            {"name": "Navarra", "code": "NC"},
+            {"name": "País Vasco", "code": "PV"},
+        ]
+    },
+    "Argentina": {
+        "name": "Argentina",
+        "iso_code_2": "AR",
+        "iso_code_3": "ARG",
+        "numeric_code": "032",
+        "phone_code": "+54",
+        "currency_code": "ARS",
+        "currency_name": "Argentine Peso",
+        "states": [
+            {"name": "Buenos Aires", "code": "BA"},
+            {"name": "Ciudad Autónoma de Buenos Aires", "code": "CABA"},
+            {"name": "Catamarca", "code": "CT"},
+            {"name": "Chaco", "code": "CC"},
+            {"name": "Chubut", "code": "CH"},
+            {"name": "Córdoba", "code": "CB"},
+            {"name": "Corrientes", "code": "CN"},
+            {"name": "Entre Ríos", "code": "ER"},
+            {"name": "Formosa", "code": "FA"},
+            {"name": "Jujuy", "code": "JY"},
+            {"name": "La Pampa", "code": "LP"},
+            {"name": "La Rioja", "code": "LR"},
+            {"name": "Mendoza", "code": "MZ"},
+            {"name": "Misiones", "code": "MN"},
+            {"name": "Neuquén", "code": "NQ"},
+            {"name": "Río Negro", "code": "RN"},
+            {"name": "Salta", "code": "SA"},
+            {"name": "San Juan", "code": "SJ"},
+            {"name": "San Luis", "code": "SL"},
+            {"name": "Santa Cruz", "code": "SC"},
+            {"name": "Santa Fe", "code": "SF"},
+            {"name": "Santiago del Estero", "code": "SE"},
+            {"name": "Tierra del Fuego", "code": "TF"},
+            {"name": "Tucumán", "code": "TM"},
         ]
     }
 }

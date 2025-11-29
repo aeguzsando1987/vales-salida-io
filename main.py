@@ -448,7 +448,27 @@ def startup_event():
     # La auto-asignación de permisos al Admin ahora se ejecuta automáticamente
     # en initialize_database() -> initialize_permissions()
 
+    # Iniciar scheduler de tareas automáticas (Fase 2)
+    from app.config.settings import settings
+    if settings.scheduler_enabled:
+        from app.shared.scheduler import start_scheduler
+        start_scheduler()
+        print("Scheduler de tareas iniciado correctamente")
+    else:
+        print("⚠ Scheduler deshabilitado en configuración")
+
     db.close()
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    """Detener scheduler al cerrar aplicación"""
+    from app.config.settings import settings
+    if settings.scheduler_enabled:
+        from app.shared.scheduler import stop_scheduler
+        stop_scheduler()
+        print("Scheduler detenido correctamente")
+
 
 if __name__ == "__main__":
     import uvicorn

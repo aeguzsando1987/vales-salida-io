@@ -136,6 +136,12 @@ include_timestamp = true
 include_request_id = true
 pretty_json = false
 
+[scheduler]
+# Configuración del scheduler de tareas automáticas
+enabled = true
+overdue_check_hour = 0      # 00:00 UTC por defecto
+overdue_check_minute = 0
+
 [environments.development]
 # Configuración específica para desarrollo
 debug = true

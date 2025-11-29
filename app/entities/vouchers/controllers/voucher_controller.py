@@ -24,9 +24,16 @@ from app.entities.vouchers.schemas.voucher_schemas import (
     VoucherWithDetailsResponse,
     VoucherListResponse,
     VoucherSearchResponse,
-    VoucherStatistics
+    VoucherStatistics,
+    # Schemas de logs
+    EntryLogCreate,
+    EntryLogResponse,
+    OutLogCreate,
+    OutLogResponse
 )
 from app.entities.vouchers.models.voucher import VoucherStatusEnum, VoucherTypeEnum
+from app.entities.vouchers.models.entry_log import EntryStatusEnum
+from app.entities.vouchers.models.out_log import ValidationStatusEnum
 
 from app.shared.exceptions import (
     EntityNotFoundError,
@@ -453,6 +460,219 @@ class VoucherController:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error al cancelar voucher: {str(e)}"
             )
+
+    # ==================== LOG OPERATIONS ====================
+
+    def confirm_entry(
+        self,
+        voucher_id: int,
+        entry_data: EntryLogCreate,
+        current_user_id: int
+    ) -> VoucherDetailedResponse:
+        """
+        Confirma recepción física de material (crea entry_log automáticamente).
+
+        Args:
+            voucher_id: ID del voucher
+            entry_data: Datos de recepción
+            current_user_id: Usuario que confirma
+
+        Returns:
+            Voucher actualizado con entry_log incluido
+
+        Raises:
+            HTTPException 404: Si no existe
+            HTTPException 400: Si estado no permite o validaciones fallan
+            HTTPException 500: Si error interno
+        """
+        try:
+            voucher = self.service.confirm_entry_voucher(
+                voucher_id=voucher_id,
+                entry_status=entry_data.entry_status,
+                received_by_id=entry_data.received_by_id,
+                missing_items_description=entry_data.missing_items_description,
+                notes=entry_data.notes,
+                confirming_user_id=current_user_id
+            )
+
+            # Formatear respuesta detallada con logs
+            return self._format_detailed_response(voucher, include_logs=True)
+
+        except EntityNotFoundError as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        except (BusinessRuleError, EntityValidationError) as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al confirmar entrada: {str(e)}"
+            )
+
+    def validate_exit(
+        self,
+        voucher_id: int,
+        validation_data: OutLogCreate,
+        qr_token: Optional[str],
+        current_user_id: int
+    ) -> VoucherDetailedResponse:
+        """
+        Valida salida de material mediante QR (crea out_log automáticamente).
+
+        Args:
+            voucher_id: ID del voucher
+            validation_data: Datos de validación
+            qr_token: Token QR (opcional)
+            current_user_id: Usuario que valida
+
+        Returns:
+            Voucher actualizado con out_log incluido
+
+        Raises:
+            HTTPException 404: Si no existe
+            HTTPException 400: Si estado no permite o QR inválido
+            HTTPException 500: Si error interno
+        """
+        try:
+            voucher = self.service.validate_exit_voucher(
+                voucher_id=voucher_id,
+                validation_status=validation_data.validation_status,
+                scanned_by_id=validation_data.scanned_by_id,
+                observations=validation_data.observations,
+                qr_token=qr_token,
+                validating_user_id=current_user_id
+            )
+
+            # Formatear respuesta detallada con logs
+            return self._format_detailed_response(voucher, include_logs=True)
+
+        except EntityNotFoundError as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        except (BusinessRuleError, EntityValidationError) as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al validar salida: {str(e)}"
+            )
+
+    def get_logs(self, voucher_id: int) -> dict:
+        """
+        Obtiene la bitácora completa de un voucher (entry_log + out_log).
+
+        Args:
+            voucher_id: ID del voucher
+
+        Returns:
+            Dict con entry_log y out_log formateados
+
+        Raises:
+            HTTPException 404: Si no existe
+            HTTPException 500: Si error interno
+        """
+        try:
+            logs_data = self.service.get_voucher_logs(voucher_id)
+
+            # Formatear logs con nombres
+            formatted_logs = {
+                "voucher_id": logs_data["voucher_id"],
+                "folio": logs_data["folio"],
+                "entry_log": None,
+                "out_log": None
+            }
+
+            if logs_data["entry_log"]:
+                formatted_logs["entry_log"] = self._format_entry_log_response(
+                    logs_data["entry_log"]
+                )
+
+            if logs_data["out_log"]:
+                formatted_logs["out_log"] = self._format_out_log_response(
+                    logs_data["out_log"]
+                )
+
+            return formatted_logs
+
+        except EntityNotFoundError as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al obtener logs: {str(e)}"
+            )
+
+    # ==================== HELPER METHODS (PRIVATE) ====================
+
+    def _format_entry_log_response(self, entry_log) -> dict:
+        """
+        Formatea entry_log con nombres resueltos.
+
+        Args:
+            entry_log: EntryLog model instance
+
+        Returns:
+            Dict con campos del log + nombres
+        """
+        return {
+            "id": entry_log.id,
+            "voucher_id": entry_log.voucher_id,
+            "entry_status": entry_log.entry_status.value,
+            "received_by_id": entry_log.received_by_id,
+            "received_by_name": (
+                entry_log.received_by.full_name
+                if entry_log.received_by else None
+            ),
+            "missing_items_description": entry_log.missing_items_description,
+            "notes": entry_log.notes,
+            "created_at": entry_log.created_at,
+            "created_by": entry_log.created_by,
+            "creator_name": (
+                entry_log.creator.email
+                if entry_log.creator else None
+            )
+        }
+
+    def _format_out_log_response(self, out_log) -> dict:
+        """
+        Formatea out_log con nombres resueltos.
+
+        Args:
+            out_log: OutLog model instance
+
+        Returns:
+            Dict con campos del log + nombres
+        """
+        return {
+            "id": out_log.id,
+            "voucher_id": out_log.voucher_id,
+            "validation_status": out_log.validation_status.value,
+            "scanned_by_id": out_log.scanned_by_id,
+            "scanned_by_name": (
+                out_log.scanned_by.full_name
+                if out_log.scanned_by else None
+            ),
+            "observations": out_log.observations,
+            "created_at": out_log.created_at,
+            "created_by": out_log.created_by,
+            "creator_name": (
+                out_log.creator.email
+                if out_log.creator else None
+            )
+        }
 
     # ==================== BÚSQUEDA Y FILTROS ====================
 

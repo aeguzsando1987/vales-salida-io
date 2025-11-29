@@ -10,6 +10,12 @@ import enum
 
 from database import Base
 
+# Imports para logs de auditoría (forward references)
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.entities.vouchers.models.entry_log import EntryLog, EntryStatusEnum
+    from app.entities.vouchers.models.out_log import OutLog, ValidationStatusEnum
+
 
 class VoucherTypeEnum(str, enum.Enum):
     """Tipo de vale"""
@@ -137,6 +143,21 @@ class Voucher(Base):
     # Relación con detalles (líneas del vale)
     details = relationship("VoucherDetail", back_populates="voucher",
                           cascade="all, delete-orphan")
+
+    # Relationships a logs de auditoría (uno a uno)
+    entry_log = relationship(
+        "EntryLog",
+        back_populates="voucher",
+        uselist=False,  # Uno a uno
+        cascade="all, delete-orphan"
+    )
+
+    out_log = relationship(
+        "OutLog",
+        back_populates="voucher",
+        uselist=False,  # Uno a uno
+        cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Voucher(folio='{self.folio}', type='{self.voucher_type}', status='{self.status}')>"
