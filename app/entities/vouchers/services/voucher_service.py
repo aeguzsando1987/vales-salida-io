@@ -111,19 +111,29 @@ class VoucherService:
         token = hashlib.sha256(raw.encode()).hexdigest()
         return token
 
-    def validate_qr_token(self, voucher_id: int, token: str) -> bool:
+    def validate_qr_token(self, voucher_id: int, qr_data: str) -> bool:
         """
-        Valida token QR (válido por 24h)
+        Valida que el voucher existe y está en estado apropiado para validación.
+
+        El QR solo sirve para identificar el voucher rápidamente (como un ID visual).
+        La validación real de seguridad NO es necesaria - el checker valida visualmente
+        el material físico y luego usa validate-exit para cambiar el estado.
 
         Args:
             voucher_id: ID del voucher
-            token: Token a validar
+            qr_data: Contenido del QR (no se usa, solo para compatibilidad)
 
         Returns:
-            True si es válido, False si no
+            True si el voucher existe y está en estado válido para checking
         """
-        expected = self._generate_qr_token(voucher_id)
-        return token == expected
+        # Verificar que el voucher existe
+        voucher = self.get_voucher(voucher_id)
+
+        # El voucher es "válido" para checking si está en estado APPROVED
+        # (listo para salir) o IN_TRANSIT (esperando confirmación de entrada)
+        valid_states = [VoucherStatusEnum.APPROVED, VoucherStatusEnum.IN_TRANSIT]
+
+        return voucher.status in valid_states
 
     # ==================== LOG CREATION (PRIVATE METHODS) ====================
 
@@ -253,43 +263,47 @@ class VoucherService:
     def confirm_entry_voucher(
         self,
         voucher_id: int,
-        entry_status: EntryStatusEnum,
         received_by_id: int,
-        missing_items_description: Optional[str] = None,
-        notes: Optional[str] = None,
+        line_validations: List[dict],
+        general_observations: Optional[str] = None,
         confirming_user_id: int = 1
     ) -> Voucher:
         """
-        Confirma recepción física de material (crea entry_log automáticamente)
+        Confirma recepcion fisica de material LINEA POR LINEA (logica ESTRICTA)
+
+        IMPORTANTE: Vale solo cierra si TODAS las lineas tienen ok_entry=true.
+        El gerente/supervisor valida cada linea individualmente.
 
         Flujos:
-        - ENTRY: PENDING → (registra entry_log) → CLOSED/OVERDUE
-        - EXIT con retorno: IN_TRANSIT → (registra entry_log) → CLOSED/OVERDUE
-        - EXIT intercompañía: IN_TRANSIT → (registra entry_log) → CLOSED/OVERDUE
+        - ENTRY: PENDING → (valida lineas + crea entry_log) → CLOSED/INCOMPLETE_DAMAGED
+        - EXIT con retorno: IN_TRANSIT → (valida lineas + crea entry_log) → CLOSED/INCOMPLETE_DAMAGED
+        - EXIT intercompania: IN_TRANSIT → (valida lineas + crea entry_log) → CLOSED/INCOMPLETE_DAMAGED
 
-        Transiciones de estado:
-        - Si entry_status=COMPLETE → voucher.status=CLOSED
-        - Si entry_status=INCOMPLETE/DAMAGED → voucher.status=OVERDUE
+        Logica de negocio:
+        - Si TODAS las lineas ok=true → voucher.status=CLOSED
+        - Si ALGUNA linea ok=false → voucher.status=INCOMPLETE_DAMAGED
+        - Material incompleto/dañado NO cierra el vale
 
         Args:
             voucher_id: ID del voucher
-            entry_status: COMPLETE, INCOMPLETE o DAMAGED
-            received_by_id: ID de quien recibe el material
-            missing_items_description: Descripción de faltantes (obligatorio si INCOMPLETE/DAMAGED)
-            notes: Observaciones adicionales
-            confirming_user_id: Usuario que confirma (default: 1 = Admin)
+            received_by_id: ID de quien recibe
+            line_validations: Lista de validaciones [{"detail_id": 1, "ok": true, "notes": "..."}]
+            general_observations: Observaciones generales
+            confirming_user_id: Usuario que confirma
 
         Returns:
-            Voucher actualizado con entry_log creado
+            Voucher actualizado con validaciones linea por linea
 
         Raises:
-            EntityNotFoundError: Si voucher no existe
+            EntityNotFoundError: Si voucher o detalles no existen
             BusinessRuleError: Si estado no permite confirmar entrada
-            EntityValidationError: Si validaciones fallan
+            EntityValidationError: Si validaciones son invalidas
         """
-        voucher = self.get_voucher(voucher_id)
+        from app.entities.voucher_details.models.voucher_detail import VoucherDetail
 
-        # Validar estados válidos
+        voucher = self.get_voucher(voucher_id, include_details=True)
+
+        # Validar estados validos
         valid_statuses = [
             VoucherStatusEnum.PENDING,      # ENTRY puro
             VoucherStatusEnum.IN_TRANSIT,   # EXIT con retorno
@@ -299,16 +313,73 @@ class VoucherService:
         if voucher.status not in valid_statuses:
             raise BusinessRuleError(
                 f"No se puede confirmar entrada desde estado {voucher.status.value}. "
-                f"Estados válidos: {[s.value for s in valid_statuses]}"
+                f"Estados validos: {[s.value for s in valid_statuses]}"
             )
 
-        # Crear entry_log (validaciones internas)
+        # Validar que haya detalles
+        if not voucher.details:
+            raise EntityValidationError(
+                "Voucher",
+                {"details": "El voucher no tiene lineas de detalle"}
+            )
+
+        # Validar que se proporcionen validaciones para todas las lineas
+        detail_ids = {d.id for d in voucher.details}
+        validation_ids = {v["detail_id"] for v in line_validations}
+
+        if detail_ids != validation_ids:
+            missing = detail_ids - validation_ids
+            extra = validation_ids - detail_ids
+            raise EntityValidationError(
+                "LineValidation",
+                {
+                    "detail_ids": f"Faltan validaciones para: {missing}. Validaciones extras: {extra}"
+                }
+            )
+
+        # Actualizar ok_entry en cada detalle
+        all_ok = True
+        for validation in line_validations:
+            detail = self.db.query(VoucherDetail).filter(
+                VoucherDetail.id == validation["detail_id"]
+            ).first()
+
+            if not detail:
+                raise EntityNotFoundError("VoucherDetail", validation["detail_id"])
+
+            detail.ok_entry = validation["ok"]
+            detail.ok_entry_notes = validation.get("notes")
+
+            if not validation["ok"]:
+                all_ok = False
+
+        # Determinar entry_status del entry_log
+        if all_ok:
+            entry_status = EntryStatusEnum.COMPLETE
+        else:
+            # Determinar si es INCOMPLETE o DAMAGED segun observaciones
+            # Por defecto usamos INCOMPLETE si hay problemas
+            entry_status = EntryStatusEnum.INCOMPLETE
+
+        # Crear entry_log con descripcion de faltantes
+        missing_items_description = None
+        if not all_ok:
+            problems_list = [
+                f"Linea {v['detail_id']}: {v.get('notes', 'Sin especificar')}"
+                for v in line_validations if not v["ok"]
+            ]
+            missing_items_description = "\n".join(problems_list)
+
+        combined_notes = general_observations or ""
+        if not all_ok and missing_items_description:
+            combined_notes += f"\n\nProblemas detectados:\n{missing_items_description}"
+
         self._create_entry_log(
             voucher=voucher,
             entry_status=entry_status,
             received_by_id=received_by_id,
             missing_items_description=missing_items_description,
-            notes=notes,
+            notes=combined_notes.strip() or None,
             created_by_user_id=confirming_user_id
         )
 
@@ -319,18 +390,17 @@ class VoucherService:
         if voucher.with_return:
             voucher.actual_return_date = date.today()
 
-        # Transición de estado basada en entry_status
-        if entry_status == EntryStatusEnum.COMPLETE:
+        # Transicion de estado: ESTRICTO segun validaciones de lineas
+        if all_ok:
             voucher.status = VoucherStatusEnum.CLOSED
         else:
-            # INCOMPLETE o DAMAGED
-            voucher.status = VoucherStatusEnum.OVERDUE
+            voucher.status = VoucherStatusEnum.INCOMPLETE_DAMAGED
 
-        # Auditoría
+        # Auditoria
         voucher.updated_by = confirming_user_id
         voucher.updated_at = datetime.utcnow()
 
-        # Commit atómico (voucher + entry_log)
+        # Commit atomico
         self.db.commit()
         self.db.refresh(voucher)
 
@@ -339,37 +409,45 @@ class VoucherService:
     def validate_exit_voucher(
         self,
         voucher_id: int,
-        validation_status: ValidationStatusEnum,
         scanned_by_id: int,
-        observations: Optional[str] = None,
-        qr_token: Optional[str] = None,
+        line_validations: List[dict],
+        general_observations: Optional[str] = None,
         validating_user_id: int = 1
     ) -> Voucher:
         """
-        Valida salida de material mediante QR (crea out_log automáticamente)
+        Valida salida de material LINEA POR LINEA (logica FLEXIBLE)
+
+        IMPORTANTE: Material SIEMPRE sale, incluso si hay observaciones.
+        El checker valida cada linea individualmente (ok_exit true/false).
 
         Flujos:
-        - EXIT sin retorno: APPROVED → (crea out_log) → CLOSED
-        - EXIT con retorno: APPROVED → (crea out_log) → IN_TRANSIT
-        - EXIT intercompañía: APPROVED → (crea out_log) → IN_TRANSIT
+        - EXIT sin retorno: APPROVED → (valida lineas + crea out_log) → CLOSED
+        - EXIT con retorno: APPROVED → (valida lineas + crea out_log) → IN_TRANSIT
+        - EXIT intercompania: APPROVED → (valida lineas + crea out_log) → IN_TRANSIT
+
+        Logica de negocio:
+        - Si TODAS las lineas ok=true → Material sale OK
+        - Si ALGUNA linea ok=false → Material sale IGUAL, con observaciones registradas
+        - NUNCA se bloquea la salida del material
 
         Args:
             voucher_id: ID del voucher
-            validation_status: APPROVED, REJECTED o OBSERVATION
             scanned_by_id: ID del vigilante
-            observations: Observaciones de inspección visual
-            qr_token: Token QR (opcional, para validar)
-            validating_user_id: Usuario que valida (default: 1 = Admin)
+            line_validations: Lista de validaciones [{"detail_id": 1, "ok": true, "notes": "..."}]
+            general_observations: Observaciones generales
+            validating_user_id: Usuario que valida
 
         Returns:
-            Voucher actualizado con out_log creado
+            Voucher actualizado con validaciones linea por linea
 
         Raises:
-            EntityNotFoundError: Si voucher no existe
+            EntityNotFoundError: Si voucher o detalles no existen
             BusinessRuleError: Si estado no permite validar salida
-            EntityValidationError: Si QR token es inválido
+            EntityValidationError: Si validaciones son invalidas
         """
-        voucher = self.get_voucher(voucher_id)
+        from app.entities.voucher_details.models.voucher_detail import VoucherDetail
+
+        voucher = self.get_voucher(voucher_id, include_details=True)
 
         # Validar estado
         if voucher.status != VoucherStatusEnum.APPROVED:
@@ -377,40 +455,77 @@ class VoucherService:
                 f"Solo vouchers APPROVED pueden validar salida. Estado actual: {voucher.status.value}"
             )
 
-        # Validar QR token si se proporciona (opcional)
-        if qr_token:
-            if not self.validate_qr_token(voucher.id, qr_token):
-                raise EntityValidationError(
-                    "OutLog",
-                    {"qr_token": "Token QR inválido o expirado"}
-                )
+        # Validar que haya detalles
+        if not voucher.details:
+            raise EntityValidationError(
+                "Voucher",
+                {"details": "El voucher no tiene lineas de detalle"}
+            )
 
-        # Crear out_log (validaciones internas)
+        # Validar que se proporcionen validaciones para todas las lineas
+        detail_ids = {d.id for d in voucher.details}
+        validation_ids = {v["detail_id"] for v in line_validations}
+
+        if detail_ids != validation_ids:
+            missing = detail_ids - validation_ids
+            extra = validation_ids - detail_ids
+            raise EntityValidationError(
+                "LineValidation",
+                {
+                    "detail_ids": f"Faltan validaciones para: {missing}. Validaciones extras: {extra}"
+                }
+            )
+
+        # Actualizar ok_exit en cada detalle
+        has_problems = False
+        for validation in line_validations:
+            detail = self.db.query(VoucherDetail).filter(
+                VoucherDetail.id == validation["detail_id"]
+            ).first()
+
+            if not detail:
+                raise EntityNotFoundError("VoucherDetail", validation["detail_id"])
+
+            detail.ok_exit = validation["ok"]
+            detail.ok_exit_notes = validation.get("notes")
+
+            if not validation["ok"]:
+                has_problems = True
+
+        # Determinar validation_status del out_log
+        if has_problems:
+            validation_status = ValidationStatusEnum.OBSERVATION
+        else:
+            validation_status = ValidationStatusEnum.APPROVED
+
+        # Crear out_log con observaciones
+        combined_observations = general_observations or ""
+        if has_problems:
+            problems_list = [
+                f"Linea {v['detail_id']}: {v.get('notes', 'Sin especificar')}"
+                for v in line_validations if not v["ok"]
+            ]
+            combined_observations += "\n\nProblemas detectados:\n" + "\n".join(problems_list)
+
         self._create_out_log(
             voucher=voucher,
             validation_status=validation_status,
             scanned_by_id=scanned_by_id,
-            observations=observations,
+            observations=combined_observations.strip() or None,
             created_by_user_id=validating_user_id
         )
 
-        # Transición de estado basada en with_return
-        if validation_status == ValidationStatusEnum.APPROVED:
-            if voucher.with_return:
-                # EXIT con retorno → IN_TRANSIT
-                voucher.status = VoucherStatusEnum.IN_TRANSIT
-            else:
-                # EXIT sin retorno → CLOSED directo
-                voucher.status = VoucherStatusEnum.CLOSED
+        # Transicion de estado: Material SIEMPRE sale
+        if voucher.with_return or voucher.is_intercompany:
+            voucher.status = VoucherStatusEnum.IN_TRANSIT
         else:
-            # REJECTED u OBSERVATION → permanece APPROVED (requiere acción)
-            pass
+            voucher.status = VoucherStatusEnum.CLOSED
 
-        # Auditoría
+        # Auditoria
         voucher.updated_by = validating_user_id
         voucher.updated_at = datetime.utcnow()
 
-        # Commit atómico (voucher + out_log)
+        # Commit atomico
         self.db.commit()
         self.db.refresh(voucher)
 
@@ -521,8 +636,10 @@ class VoucherService:
             company_id=voucher_data.company_id,
             origin_branch_id=voucher_data.origin_branch_id,
             destination_branch_id=voucher_data.destination_branch_id,
+            outer_destination=voucher_data.outer_destination,
             delivered_by_id=voucher_data.delivered_by_id,
             with_return=voucher_data.with_return,
+            is_intercompany=voucher_data.is_intercompany,
             estimated_return_date=voucher_data.estimated_return_date,
             notes=voucher_data.notes,
             internal_notes=voucher_data.internal_notes,
@@ -679,16 +796,20 @@ class VoucherService:
                 f"Solo se pueden aprobar vouchers en estado PENDING. Estado actual: {voucher.status.value}"
             )
 
-        # Validar aprobador existe
-        approver = self.db.query(Individual).filter(
-            Individual.id == approve_data.approved_by_id
-        ).first()
-        if not approver:
-            raise EntityNotFoundError("Individual", approve_data.approved_by_id)
+        # Validar aprobador existe (solo si se proporciona)
+        if approve_data.approved_by_id:
+            approver = self.db.query(Individual).filter(
+                Individual.id == approve_data.approved_by_id
+            ).first()
+            if not approver:
+                raise EntityNotFoundError("Individual", approve_data.approved_by_id)
+            voucher.approved_by_id = approve_data.approved_by_id
+        else:
+            # Si no se proporciona, queda como NULL
+            voucher.approved_by_id = None
 
         # Cambiar estado
         voucher.status = VoucherStatusEnum.APPROVED
-        voucher.approved_by_id = approve_data.approved_by_id
 
         # Agregar notas si existen
         if approve_data.notes:
@@ -930,3 +1051,156 @@ class VoucherService:
             count += 1
 
         return count
+
+    # ==================== GENERACIÓN PDF/QR (Phase 4) ====================
+
+    def get_voucher_with_details(self, voucher_id: int) -> Voucher:
+        """
+        Obtiene un voucher con todas sus relaciones cargadas (eager loading)
+        para generar PDFs sin queries N+1.
+
+        Args:
+            voucher_id: ID del voucher
+
+        Returns:
+            Voucher con todas las relaciones cargadas
+
+        Raises:
+            EntityNotFoundError: Si el voucher no existe
+        """
+        from sqlalchemy.orm import joinedload
+
+        voucher = self.db.query(Voucher).options(
+            joinedload(Voucher.company),
+            joinedload(Voucher.origin_branch),
+            joinedload(Voucher.destination_branch),
+            joinedload(Voucher.delivered_by),
+            joinedload(Voucher.approved_by),
+            joinedload(Voucher.received_by),
+            joinedload(Voucher.details),
+            joinedload(Voucher.entry_log),
+            joinedload(Voucher.out_log)
+        ).filter(
+            Voucher.id == voucher_id,
+            Voucher.is_deleted == False
+        ).first()
+
+        if not voucher:
+            raise EntityNotFoundError("Voucher", voucher_id)
+
+        return voucher
+
+    def _is_qr_token_expired(self, voucher: Voucher) -> bool:
+        """
+        Verifica si el token QR ha expirado (>24 horas).
+
+        Args:
+            voucher: Instancia del voucher
+
+        Returns:
+            True si el token expiró o no existe
+        """
+        if not voucher.qr_token or not voucher.qr_image_last_generated_at:
+            return True
+
+        from datetime import timedelta
+        expiration_time = voucher.qr_image_last_generated_at + timedelta(hours=24)
+        return datetime.utcnow() > expiration_time
+
+    def initiate_pdf_generation(self, voucher_id: int, current_user_id: int) -> dict:
+        """
+        Inicia la generación asíncrona de PDF usando Celery.
+
+        Args:
+            voucher_id: ID del voucher
+            current_user_id: ID del usuario que solicita la generación
+
+        Returns:
+            dict con task_id, status, y message
+
+        Raises:
+            EntityNotFoundError: Si el voucher no existe
+        """
+        # Verificar que el voucher existe
+        voucher = self.get_voucher(voucher_id)
+
+        # Importar la tarea de Celery
+        from app.shared.tasks.voucher_tasks import generate_pdf_task
+
+        # Lanzar tarea asíncrona
+        task = generate_pdf_task.delay(voucher_id)
+
+        return {
+            "task_id": task.id,
+            "status": "PENDING",
+            "message": f"Generación de PDF iniciada para voucher {voucher.folio}"
+        }
+
+    def initiate_qr_generation(self, voucher_id: int, current_user_id: int) -> dict:
+        """
+        Inicia la generación asíncrona de imagen QR usando Celery.
+
+        Args:
+            voucher_id: ID del voucher
+            current_user_id: ID del usuario que solicita la generación
+
+        Returns:
+            dict con task_id, status, y message
+
+        Raises:
+            EntityNotFoundError: Si el voucher no existe
+        """
+        # Verificar que el voucher existe
+        voucher = self.get_voucher(voucher_id)
+
+        # Importar la tarea de Celery
+        from app.shared.tasks.voucher_tasks import generate_qr_task
+
+        # Lanzar tarea asíncrona
+        task = generate_qr_task.delay(voucher_id)
+
+        return {
+            "task_id": task.id,
+            "status": "PENDING",
+            "message": f"Generación de QR iniciada para voucher {voucher.folio}"
+        }
+
+    def get_task_status(self, task_id: str) -> dict:
+        """
+        Consulta el estado de una tarea de Celery.
+
+        Args:
+            task_id: ID de la tarea de Celery
+
+        Returns:
+            dict con información del estado de la tarea:
+            - task_id: ID de la tarea
+            - status: PENDING, SUCCESS, FAILURE, RETRY
+            - result: Resultado si SUCCESS, error si FAILURE
+            - message: Mensaje descriptivo
+        """
+        from celery.result import AsyncResult
+        from app.shared.tasks import celery_app
+
+        task_result = AsyncResult(task_id, app=celery_app)
+
+        response = {
+            "task_id": task_id,
+            "status": task_result.status,
+            "message": ""
+        }
+
+        if task_result.status == "SUCCESS":
+            response["result"] = task_result.result
+            response["message"] = "Tarea completada exitosamente"
+        elif task_result.status == "FAILURE":
+            response["error"] = str(task_result.info)
+            response["message"] = "Tarea falló durante la ejecución"
+        elif task_result.status == "PENDING":
+            response["message"] = "Tarea en cola o ejecutándose"
+        elif task_result.status == "RETRY":
+            response["message"] = "Tarea reintentando después de un error"
+        else:
+            response["message"] = f"Estado desconocido: {task_result.status}"
+
+        return response

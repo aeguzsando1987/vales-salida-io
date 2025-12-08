@@ -1,0 +1,316 @@
+/**
+ * Estilos para PDFs de Vouchers (Phase 4)
+ *
+ * Diferenciación por color con banda lateral derecha:
+ * - VERDE: Vouchers de ENTRY (entrada)
+ * - ROJO: Vouchers de EXIT con retorno (salida con retorno)
+ * - AMARILLO: Vouchers de EXIT sin retorno (salida sin retorno)
+ */
+
+/* ==================== CONFIGURACIÓN DE PÁGINA ==================== */
+
+@page {
+    size: Letter;
+    margin: 2cm;
+}
+
+/* ==================== ESTILOS BASE ==================== */
+
+body {
+    font-family: Arial, sans-serif;
+    font-size: 11pt;
+    color: #333;
+    line-height: 1.4;
+    position: relative;
+    padding-right: 3cm;  /* Espacio para la banda de color */
+}
+
+/* ==================== BANDA DE COLOR LATERAL DERECHA ==================== */
+
+/* Pseudo-elemento para crear la banda de color */
+body::after {
+    content: '';
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 2.5cm;
+    z-index: -1;
+}
+
+/* VERDE - Vouchers de ENTRY (entrada) */
+.voucher-entry body::after {
+    background: linear-gradient(180deg, #28a745 0%, #20c997 100%);
+}
+
+/* ROJO - Vouchers de EXIT con retorno */
+.voucher-exit-return body::after {
+    background: linear-gradient(180deg, #dc3545 0%, #c82333 100%);
+}
+
+/* AMARILLO - Vouchers de EXIT sin retorno */
+.voucher-exit-no-return body::after {
+    background: linear-gradient(180deg, #ffc107 0%, #ff9800 100%);
+}
+
+/* ==================== HEADER ==================== */
+
+.header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 3px solid #333;
+}
+
+.header h1 {
+    font-size: 20pt;
+    margin: 0 0 5px 0;
+    color: #000;
+}
+
+.header .folio {
+    font-size: 14pt;
+    font-weight: bold;
+    margin-top: 5px;
+    color: #333;
+}
+
+/* ==================== BADGE DE TIPO DE VOUCHER ==================== */
+
+.voucher-type-badge {
+    display: inline-block;
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 12pt;
+    margin-top: 10px;
+    color: white;
+}
+
+/* Colores según tipo */
+.voucher-entry .voucher-type-badge {
+    background-color: #28a745;  /* VERDE */
+}
+
+.voucher-exit-return .voucher-type-badge {
+    background-color: #dc3545;  /* ROJO */
+}
+
+.voucher-exit-no-return .voucher-type-badge {
+    background-color: #ffc107;  /* AMARILLO */
+}
+
+/* ==================== METADATA SECTION ==================== */
+
+.metadata {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    font-size: 10pt;
+}
+
+.metadata-section {
+    flex: 1;
+}
+
+.metadata-section div {
+    margin-bottom: 5px;
+}
+
+.metadata-label {
+    font-weight: bold;
+    color: #666;
+}
+
+/* ==================== TABLA DE DETALLES ==================== */
+
+.details-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.details-table th {
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+    font-size: 10pt;
+    font-weight: bold;
+}
+
+.details-table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    font-size: 10pt;
+}
+
+.details-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.details-table td.center {
+    text-align: center;
+}
+
+/* ==================== NOTAS Y OBSERVACIONES ==================== */
+
+.notes-section {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.notes-section strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.notes-box {
+    border: 1px solid #ccc;
+    padding: 10px;
+    background-color: #f9f9f9;
+    font-size: 10pt;
+    line-height: 1.5;
+}
+
+/* ==================== FIRMAS DIGITALES ==================== */
+
+.signatures {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 40px;
+    page-break-inside: avoid;
+}
+
+.signature-box {
+    text-align: center;
+    flex: 1;
+}
+
+.signature-line {
+    border-top: 2px solid #333;
+    margin-top: 40px;
+    padding-top: 5px;
+    font-size: 9pt;
+    font-weight: bold;
+}
+
+.signature-name {
+    margin-bottom: 0;
+    color: #000;
+}
+
+.signature-role {
+    font-weight: normal;
+    color: #666;
+    font-size: 8pt;
+}
+
+/* ==================== CÓDIGO QR ==================== */
+
+.qr-section {
+    text-align: center;
+    margin-top: 30px;
+    margin-bottom: 20px;
+    page-break-inside: avoid;
+}
+
+.qr-section img {
+    width: 150px;
+    height: 150px;
+    border: 2px solid #333;
+    padding: 5px;
+    background-color: #fff;
+}
+
+.qr-section p {
+    font-size: 9pt;
+    margin-top: 5px;
+    color: #666;
+}
+
+/* ==================== FOOTER ==================== */
+
+.footer {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 8pt;
+    color: #999;
+    border-top: 1px solid #ccc;
+    padding-top: 10px;
+}
+
+/* ==================== BADGES DE ESTADO ==================== */
+
+.status-badge {
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 11pt;
+    margin-top: 5px;
+}
+
+/* Estados específicos */
+.status-PENDING {
+    background-color: #e2e3e5;
+    color: #383d41;
+}
+
+.status-APPROVED {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-IN_TRANSIT {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-CLOSED {
+    background-color: #cce5ff;
+    color: #004085;
+}
+
+.status-OVERDUE {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-CANCELLED {
+    background-color: #f5c6cb;
+    color: #721c24;
+}
+
+/* ==================== UTILIDADES ==================== */
+
+.text-center {
+    text-align: center;
+}
+
+.text-bold {
+    font-weight: bold;
+}
+
+.page-break {
+    page-break-after: always;
+}
+
+.no-page-break {
+    page-break-inside: avoid;
+}
+
+/* ==================== RESPONSIVE ADJUSTMENTS ==================== */
+
+@media print {
+    body {
+        background-color: white;
+    }
+
+    .header,
+    .signatures,
+    .qr-section {
+        page-break-inside: avoid;
+    }
+}

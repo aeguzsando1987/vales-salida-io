@@ -55,7 +55,9 @@ app.add_middleware(
         "http://localhost:5500",  # Vanilla JS (Live Server)
         "http://127.0.0.1:5500",
         "http://localhost:3000",  # React
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        "http://localhost:3002",  # Next.js webapp
+        "http://127.0.0.1:3002"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -201,7 +203,7 @@ def get_user_roles():
         {"id": 2, "name": "Gerente", "description": "Gerente con acceso de gestión"},
         {"id": 3, "name": "Colaborador", "description": "Colaborador con acceso limitado"},
         {"id": 4, "name": "Lector", "description": "Usuario con acceso de solo lectura"},
-        {"id": 5, "name": "Guest", "description": "Invitado con acceso mínimo"}
+        {"id": 5, "name": "Vigilante", "description": "Vigilante/Checker con acceso a validación de salidas"}
     ]
 
 @app.get("/users/{user_id}", tags=["users"], summary="Obtener usuario específico")

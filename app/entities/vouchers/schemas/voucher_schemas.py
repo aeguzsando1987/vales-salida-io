@@ -20,8 +20,10 @@ class VoucherBase(BaseModel):
     company_id: int = Field(..., gt=0, description="ID de la empresa")
     origin_branch_id: Optional[int] = Field(None, gt=0, description="ID sucursal origen")
     destination_branch_id: Optional[int] = Field(None, gt=0, description="ID sucursal destino")
+    outer_destination: Optional[str] = Field(None, max_length=255, description="Destino externo cuando NO es intercompañía")
     delivered_by_id: int = Field(..., gt=0, description="ID de quien entrega")
     with_return: bool = Field(False, description="¿Requiere retorno?")
+    is_intercompany: bool = Field(False, description="¿Es transferencia entre empresas?")
     estimated_return_date: Optional[date] = Field(None, description="Fecha estimada de retorno")
     notes: Optional[str] = Field(None, max_length=2000, description="Observaciones")
     internal_notes: Optional[str] = Field(None, max_length=2000, description="Notas internas")
@@ -53,7 +55,9 @@ class VoucherUpdate(BaseModel):
     """
     origin_branch_id: Optional[int] = Field(None, gt=0)
     destination_branch_id: Optional[int] = Field(None, gt=0)
+    outer_destination: Optional[str] = Field(None, max_length=255)
     with_return: Optional[bool] = None
+    is_intercompany: Optional[bool] = None
     estimated_return_date: Optional[date] = None
     actual_return_date: Optional[date] = None
     notes: Optional[str] = Field(None, max_length=2000)
@@ -61,9 +65,16 @@ class VoucherUpdate(BaseModel):
 
 
 class VoucherApprove(BaseModel):
-    """Schema para aprobar un voucher"""
-    approved_by_id: int = Field(..., gt=0, description="ID de quien aprueba")
-    notes: Optional[str] = Field(None, max_length=500, description="Observaciones de aprobación")
+    """
+    Schema para aprobar un voucher.
+
+    El campo approved_by_id es opcional. Si no se proporciona,
+    el voucher se aprueba sin asignar un individual específico.
+    """
+    approved_by_id: Optional[int] = Field(None, gt=0,
+                                          description="ID del individual que aprueba (opcional)")
+    notes: Optional[str] = Field(None, max_length=500,
+                                description="Observaciones de aprobación")
 
 
 class VoucherCancel(BaseModel):
@@ -79,7 +90,7 @@ class VoucherCancel(BaseModel):
 class EntryLogBase(BaseModel):
     """Schema base para EntryLog"""
     entry_status: EntryStatusEnum = Field(..., description="COMPLETE, INCOMPLETE o DAMAGED")
-    received_by_id: int = Field(..., gt=0, description="ID de quien recibe el material")
+    received_by_id: Optional[int] = Field(None, gt=0, description="ID de quien recibe (opcional - se usa current_user si no se especifica)")
     missing_items_description: Optional[str] = Field(None, max_length=2000,
                                                      description="Requerido si INCOMPLETE/DAMAGED")
     notes: Optional[str] = Field(None, max_length=2000, description="Observaciones")
@@ -151,6 +162,37 @@ class OutLogResponse(BaseModel):
     }
 
 
+# -------- Schemas para Validacion Linea por Linea --------
+
+class LineValidation(BaseModel):
+    """Schema para validacion de una linea individual"""
+    detail_id: int = Field(..., gt=0, description="ID del voucher_detail")
+    ok: bool = Field(..., description="Validacion visual (true=OK, false=problema)")
+    notes: Optional[str] = Field(None, max_length=500, description="Observaciones si ok=false")
+
+
+class ValidateExitRequest(BaseModel):
+    """
+    Schema para validar salida con validacion linea por linea
+
+    Logica FLEXIBLE: Material SIEMPRE sale, incluso con observaciones
+    """
+    scanned_by_id: int = Field(..., gt=0, description="ID del vigilante que valida")
+    line_validations: List[LineValidation] = Field(..., min_length=1, description="Validaciones por linea")
+    general_observations: Optional[str] = Field(None, max_length=2000, description="Observaciones generales")
+
+
+class ConfirmEntryRequest(BaseModel):
+    """
+    Schema para confirmar entrada con validacion linea por linea
+
+    Logica ESTRICTA: Vale solo cierra si TODAS las lineas tienen ok=true
+    """
+    received_by_id: int = Field(..., gt=0, description="ID de quien recibe")
+    line_validations: List[LineValidation] = Field(..., min_length=1, description="Validaciones por linea")
+    general_observations: Optional[str] = Field(None, max_length=2000, description="Observaciones generales")
+
+
 # ==================== SCHEMAS DE RESPUESTA ====================
 
 class VoucherResponse(BaseModel):
@@ -164,6 +206,7 @@ class VoucherResponse(BaseModel):
     company_id: int
     origin_branch_id: Optional[int]
     destination_branch_id: Optional[int]
+    outer_destination: Optional[str]
 
     # Firmas digitales
     approved_by_id: Optional[int]
@@ -172,6 +215,7 @@ class VoucherResponse(BaseModel):
 
     # Control
     with_return: bool
+    is_intercompany: bool
     estimated_return_date: Optional[date]
     actual_return_date: Optional[date]
 
@@ -259,6 +303,112 @@ class VoucherStatistics(BaseModel):
     pending_approval: int
     overdue: int
     in_transit: int
+
+
+# ==================== SCHEMAS PARA PDF/QR (Phase 4) ====================
+
+class TaskInitiatedResponse(BaseModel):
+    """
+    Schema de respuesta cuando se inicia una tarea asíncrona de Celery
+
+    Usado cuando se solicita generar PDF o QR.
+    """
+    task_id: str = Field(..., description="ID de la tarea de Celery")
+    status: str = Field(..., description="Estado inicial (siempre PENDING)")
+    message: str = Field(..., description="Mensaje descriptivo de la operación")
+    voucher_folio: Optional[str] = Field(None, description="Folio del voucher")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "task_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "status": "PENDING",
+                "message": "Generación de PDF iniciada para voucher ACM-SAL-2025-0001",
+                "voucher_folio": "ACM-SAL-2025-0001"
+            }
+        }
+    }
+
+
+class TaskStatusResponse(BaseModel):
+    """
+    Schema de respuesta para consultar el estado de una tarea de Celery
+
+    Estados posibles:
+    - PENDING: En cola o ejecutándose
+    - SUCCESS: Completada exitosamente
+    - FAILURE: Falló durante la ejecución
+    - RETRY: Reintentando después de un error
+    """
+    task_id: str = Field(..., description="ID de la tarea")
+    status: str = Field(..., description="PENDING, SUCCESS, FAILURE, RETRY")
+    message: str = Field(..., description="Descripción del estado actual")
+    result: Optional[dict] = Field(None, description="Resultado si SUCCESS (ruta del archivo, etc)")
+    error: Optional[str] = Field(None, description="Mensaje de error si FAILURE")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "task_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "status": "SUCCESS",
+                "message": "Tarea completada exitosamente",
+                "result": {
+                    "pdf_path": "temp_files/pdfs/voucher_1_20251129_143022.pdf",
+                    "file_size": 245678,
+                    "generated_at": "2025-11-29T14:30:22"
+                }
+            }
+        }
+    }
+
+
+class VoucherWithGenerationInfo(VoucherResponse):
+    """
+    Schema de respuesta extendido con información de generación de PDF/QR
+
+    Incluye timestamps de última generación para tracking.
+    """
+    pdf_last_generated_at: Optional[datetime] = Field(None, description="Última generación de PDF")
+    qr_image_last_generated_at: Optional[datetime] = Field(None, description="Última generación de imagen QR")
+
+    # Flags calculados (no están en BD)
+    pdf_available: bool = Field(default=False, description="¿PDF generado al menos una vez?")
+    qr_available: bool = Field(default=False, description="¿QR generado al menos una vez?")
+    qr_token_expired: bool = Field(default=False, description="¿Token QR expirado? (>24h)")
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class PDFDownloadMetadata(BaseModel):
+    """
+    Metadata sobre un archivo PDF generado
+
+    Usado para respuestas de endpoints que devuelven información del PDF
+    sin devolver el archivo directamente.
+    """
+    voucher_id: int = Field(..., description="ID del voucher")
+    voucher_folio: str = Field(..., description="Folio del voucher")
+    file_path: str = Field(..., description="Ruta del archivo PDF generado")
+    file_size_bytes: int = Field(..., gt=0, description="Tamaño del archivo en bytes")
+    generated_at: datetime = Field(..., description="Timestamp de generación")
+    expires_at: Optional[datetime] = Field(None, description="Timestamp de expiración (si es temporal)")
+    download_url: Optional[str] = Field(None, description="URL de descarga si está disponible")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "voucher_id": 1,
+                "voucher_folio": "ACM-SAL-2025-0001",
+                "file_path": "temp_files/pdfs/voucher_1_20251129_143022.pdf",
+                "file_size_bytes": 245678,
+                "generated_at": "2025-11-29T14:30:22",
+                "expires_at": "2025-11-29T15:30:22",
+                "download_url": "/api/vouchers/1/download-pdf"
+            }
+        }
+    }
 
 
 # Resolver forward references después de que todos los modelos estén definidos

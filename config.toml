@@ -142,6 +142,35 @@ enabled = true
 overdue_check_hour = 0      # 00:00 UTC por defecto
 overdue_check_minute = 0
 
+[pdf]
+# Configuración de generación de PDFs (Phase 4)
+enabled = true
+template_dir = "templates/pdf"
+temp_dir = "temp_files/pdfs"
+max_file_size_mb = 10
+temp_file_cleanup_minutes = 60
+paper_format = "letter"
+orientation = "portrait"
+
+[qr]
+# Configuración de generación de códigos QR (Phase 4)
+enabled = true
+temp_dir = "temp_files/qrcodes"
+box_size = 10
+border = 4
+image_format = "PNG"
+temp_file_cleanup_minutes = 60
+
+[celery]
+# Configuración de Celery para tareas asíncronas (Phase 4)
+broker_url = "redis://localhost:6379/0"
+result_backend = "redis://localhost:6379/0"
+task_serializer = "json"
+result_serializer = "json"
+accept_content = ["json"]
+timezone = "UTC"
+enable_utc = true
+
 [environments.development]
 # Configuración específica para desarrollo
 debug = true

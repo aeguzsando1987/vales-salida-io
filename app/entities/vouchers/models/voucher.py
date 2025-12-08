@@ -10,11 +10,12 @@ import enum
 
 from database import Base
 
-# Imports para logs de auditoría (forward references)
+# Imports para relationships (forward references)
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.entities.vouchers.models.entry_log import EntryLog, EntryStatusEnum
     from app.entities.vouchers.models.out_log import OutLog, ValidationStatusEnum
+    from app.entities.voucher_details.models.voucher_detail import VoucherDetail
 
 
 class VoucherTypeEnum(str, enum.Enum):
@@ -25,12 +26,13 @@ class VoucherTypeEnum(str, enum.Enum):
 
 class VoucherStatusEnum(str, enum.Enum):
     """Estados del voucher"""
-    PENDING = "PENDING"        # Recién creado, pendiente aprobación
-    APPROVED = "APPROVED"      # Aprobado por gerente/supervisor
-    IN_TRANSIT = "IN_TRANSIT"  # Escaneado y en tránsito
-    OVERDUE = "OVERDUE"        # Vencido o entrada incompleta
-    CLOSED = "CLOSED"          # Proceso completado
-    CANCELLED = "CANCELLED"    # Cancelado
+    PENDING = "PENDING"                        # Recién creado, pendiente aprobación
+    APPROVED = "APPROVED"                      # Aprobado por gerente/supervisor
+    IN_TRANSIT = "IN_TRANSIT"                  # Escaneado y en tránsito
+    OVERDUE = "OVERDUE"                        # Vencido por tiempo (solo scheduler)
+    INCOMPLETE_DAMAGED = "INCOMPLETE_DAMAGED"  # Entrada con faltantes/daños
+    CLOSED = "CLOSED"                          # Proceso completado exitosamente
+    CANCELLED = "CANCELLED"                    # Cancelado
 
 
 class Voucher(Base):
@@ -73,6 +75,10 @@ class Voucher(Base):
                                   nullable=True, index=True,
                                   comment="Sucursal de destino (opcional)")
 
+    # Destino externo (cuando NO es intercompañía)
+    outer_destination = Column(String(255), nullable=True,
+                              comment="Destino en texto libre cuando NO es intercompañía")
+
     # ==================== SISTEMA DE FIRMAS DIGITALES ====================
     # Trazabilidad completa de responsables
 
@@ -93,6 +99,9 @@ class Voucher(Base):
     with_return = Column(Boolean, nullable=False, default=False,
                         comment="¿Requiere retorno del material?")
 
+    is_intercompany = Column(Boolean, nullable=False, default=False,
+                            comment="¿Es transferencia entre empresas? (requiere entry_log)")
+
     estimated_return_date = Column(Date, nullable=True,
                                   comment="Fecha estimada de retorno")
 
@@ -110,6 +119,14 @@ class Voucher(Base):
     # QR Token para validación (generado automáticamente)
     qr_token = Column(String(255), nullable=True, index=True,
                      comment="Token de seguridad para QR")
+
+    # ==================== PDF Y QR TRACKING (Phase 4) ====================
+
+    pdf_last_generated_at = Column(DateTime, nullable=True,
+                                   comment="Timestamp de última generación de PDF")
+
+    qr_image_last_generated_at = Column(DateTime, nullable=True,
+                                       comment="Timestamp de última generación de imagen QR")
 
     # ==================== CAMPOS DE AUDITORÍA ====================
 

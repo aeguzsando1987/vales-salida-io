@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html class="voucher-exit-return">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="styles.css">
+    <title>Vale de Salida con Retorno - {{ voucher.folio }}</title>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>{{ company.legal_name }}</h1>
+        <div class="folio">{{ voucher.folio }}</div>
+        <div class="voucher-type-badge">SALIDA CON RETORNO</div>
+        <span class="status-badge status-{{ voucher.status.value }}">{{ voucher.status.value }}</span>
+    </div>
+
+    <!-- Metadata -->
+    <div class="metadata">
+        <div class="metadata-section">
+            <div><span class="metadata-label">Fecha Creación:</span> {{ voucher.created_at|datetime_format }}</div>
+            <div><span class="metadata-label">Tipo:</span> SALIDA CON RETORNO</div>
+            <div><span class="metadata-label">Origen:</span> {{ origin_branch.name if origin_branch else 'N/A' }}</div>
+        </div>
+        <div class="metadata-section">
+            <div><span class="metadata-label">Destino:</span> {{ destination_branch.name if destination_branch else 'N/A' }}</div>
+            {% if voucher.estimated_return_date %}
+            <div><span class="metadata-label">Fecha Retorno Estimada:</span> {{ voucher.estimated_return_date|datetime_format('%Y-%m-%d') }}</div>
+            {% endif %}
+            {% if voucher.actual_return_date %}
+            <div><span class="metadata-label">Fecha Real de Retorno:</span> {{ voucher.actual_return_date|datetime_format('%Y-%m-%d') }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Details Table -->
+    <h3 style="margin-bottom: 10px;">Artículos / Material</h3>
+    <table class="details-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 50%;">Artículo</th>
+                <th style="width: 15%;">Cantidad</th>
+                <th style="width: 15%;">Unidad</th>
+                <th style="width: 15%;">Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for detail in details %}
+            <tr>
+                <td class="center">{{ detail.line_number }}</td>
+                <td>{{ detail.item_name }}</td>
+                <td class="center">{{ detail.quantity }}</td>
+                <td>{{ detail.unit_of_measure }}</td>
+                <td>{{ detail.condition or 'Bueno' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Notes -->
+    {% if voucher.notes %}
+    <div class="notes-section">
+        <strong>Observaciones:</strong>
+        <div class="notes-box">{{ voucher.notes }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Important Notice for Return -->
+    <div class="notes-section">
+        <strong style="color: #dc3545;"> IMPORTANTE - Material debe retornar:</strong>
+        <div class="notes-box" style="border-color: #dc3545; background-color: #f8d7da;">
+            Este material debe ser devuelto en la fecha estimada indicada.
+            El responsable debe confirmar la recepción del material al retornar.
+            {% if voucher.estimated_return_date %}
+            <br><strong>Fecha límite de retorno: {{ voucher.estimated_return_date|datetime_format('%Y-%m-%d') }}</strong>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Signatures -->
+    <div class="signatures">
+        <div class="signature-box">
+            <div class="signature-line">
+                <div class="signature-name">{{ delivered_by.full_name if delivered_by else '_____________________' }}</div>
+                <div class="signature-role">Entregó</div>
+            </div>
+        </div>
+        <div class="signature-box">
+            <div class="signature-line">
+                <div class="signature-name">{{ approved_by.full_name if approved_by else '_____________________' }}</div>
+                <div class="signature-role">Aprobó</div>
+            </div>
+        </div>
+        <div class="signature-box">
+            <div class="signature-line">
+                <div class="signature-name">{{ received_by.full_name if received_by else '_____________________' }}</div>
+                <div class="signature-role">Recibió (Retorno)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code -->
+    <div class="qr-section">
+        <img src="{{ qr_image_path }}" alt="QR Code">
+        <p>Escanee para validar salida</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        Generado: {{ generated_at|datetime_format('%Y-%m-%d %H:%M:%S') }} UTC
+    </div>
+</body>
+</html>

@@ -161,6 +161,31 @@ class Settings(BaseSettings):
         description="Minuto de ejecución del job de vencimientos (0-59)"
     )
 
+    # ==================== PDF CONFIGURATION (Phase 4) ====================
+    pdf_enabled: bool = Field(default=True)
+    pdf_template_dir: str = Field(default="templates/pdf")
+    pdf_temp_dir: str = Field(default="temp_files/pdfs")
+    pdf_max_file_size_mb: int = Field(default=10)
+    pdf_temp_file_cleanup_minutes: int = Field(default=60)
+    pdf_paper_format: str = Field(default="letter")
+    pdf_orientation: str = Field(default="portrait")
+
+    # ==================== QR CONFIGURATION (Phase 4) ====================
+    qr_enabled: bool = Field(default=True)
+    qr_temp_dir: str = Field(default="temp_files/qrcodes")
+    qr_box_size: int = Field(default=10)
+    qr_border: int = Field(default=4)
+    qr_image_format: str = Field(default="PNG")
+    qr_temp_file_cleanup_minutes: int = Field(default=60)
+
+    # ==================== CELERY CONFIGURATION (Phase 4) ====================
+    celery_broker_url: str = Field(default="redis://localhost:6379/0")
+    celery_result_backend: str = Field(default="redis://localhost:6379/0")
+    celery_task_serializer: str = Field(default="json")
+    celery_result_serializer: str = Field(default="json")
+    celery_timezone: str = Field(default="UTC")
+    celery_enable_utc: bool = Field(default=True)
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
@@ -295,6 +320,31 @@ class Settings(BaseSettings):
             ("scheduler", "enabled"): "scheduler_enabled",
             ("scheduler", "overdue_check_hour"): "scheduler_overdue_hour",
             ("scheduler", "overdue_check_minute"): "scheduler_overdue_minute",
+
+            # PDF Configuration (Phase 4)
+            ("pdf", "enabled"): "pdf_enabled",
+            ("pdf", "template_dir"): "pdf_template_dir",
+            ("pdf", "temp_dir"): "pdf_temp_dir",
+            ("pdf", "max_file_size_mb"): "pdf_max_file_size_mb",
+            ("pdf", "temp_file_cleanup_minutes"): "pdf_temp_file_cleanup_minutes",
+            ("pdf", "paper_format"): "pdf_paper_format",
+            ("pdf", "orientation"): "pdf_orientation",
+
+            # QR Configuration (Phase 4)
+            ("qr", "enabled"): "qr_enabled",
+            ("qr", "temp_dir"): "qr_temp_dir",
+            ("qr", "box_size"): "qr_box_size",
+            ("qr", "border"): "qr_border",
+            ("qr", "image_format"): "qr_image_format",
+            ("qr", "temp_file_cleanup_minutes"): "qr_temp_file_cleanup_minutes",
+
+            # Celery Configuration (Phase 4)
+            ("celery", "broker_url"): "celery_broker_url",
+            ("celery", "result_backend"): "celery_result_backend",
+            ("celery", "task_serializer"): "celery_task_serializer",
+            ("celery", "result_serializer"): "celery_result_serializer",
+            ("celery", "timezone"): "celery_timezone",
+            ("celery", "enable_utc"): "celery_enable_utc",
         }
 
         for toml_path, setting_name in mappings.items():

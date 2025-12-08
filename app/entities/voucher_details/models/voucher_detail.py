@@ -60,6 +60,12 @@ class VoucherDetail(Base):
     part_number = Column(String(100), nullable=True)
     notes = Column(Text, nullable=True)
 
+    # Line-by-Line Validation Fields
+    ok_exit = Column(Boolean, nullable=True, default=None, comment="Validación visual de salida por vigilante")
+    ok_exit_notes = Column(Text, nullable=True, comment="Observaciones si ok_exit=false")
+    ok_entry = Column(Boolean, nullable=True, default=None, comment="Validación visual de entrada por gerente/supervisor")
+    ok_entry_notes = Column(Text, nullable=True, comment="Observaciones si ok_entry=false")
+
     # Status
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     is_deleted = Column(Boolean, default=False, nullable=False, index=True)

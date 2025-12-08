@@ -29,10 +29,16 @@ from app.entities.vouchers.schemas.voucher_schemas import (
     VoucherSearchResponse,
     VoucherStatistics,
     # Schemas de logs (nuevos)
-    EntryLogCreate,
     EntryLogResponse,
-    OutLogCreate,
-    OutLogResponse
+    OutLogResponse,
+    # Schemas de validacion linea por linea
+    ConfirmEntryRequest,
+    ValidateExitRequest,
+    # Schemas de PDF/QR (Phase 4)
+    TaskInitiatedResponse,
+    TaskStatusResponse,
+    VoucherWithGenerationInfo,
+    PDFDownloadMetadata
 )
 from app.entities.vouchers.models.voucher import VoucherStatusEnum, VoucherTypeEnum
 from app.entities.vouchers.models.entry_log import EntryStatusEnum
@@ -327,65 +333,94 @@ def cancel_voucher(
 @router.post(
     "/{voucher_id}/confirm-entry",
     response_model=VoucherDetailedResponse,
-    summary="Confirmar recepción de material",
-    description="Crea entry_log automáticamente y actualiza estado según resultado"
+    summary="Confirmar recepción de material (línea por línea)",
+    description="Crea entry_log con validación línea por línea y actualiza estado según resultado"
 )
 def confirm_entry(
     voucher_id: int = Path(..., gt=0, description="ID del voucher"),
-    entry_data: EntryLogCreate = Body(..., description="Datos de recepción"),
+    entry_data: ConfirmEntryRequest = Body(..., description="Validaciones línea por línea y observaciones"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("vouchers", "confirm_entry", min_level=3))
 ):
     """
-    Confirma recepción física de material (crea entry_log automáticamente).
+    Confirma recepcion fisica de material LINEA POR LINEA (crea entry_log automaticamente).
 
-    Flujos válidos:
-    - ENTRY: PENDING → CLOSED/OVERDUE (según entry_status)
-    - EXIT con retorno: IN_TRANSIT → CLOSED/OVERDUE (según entry_status)
-    - EXIT intercompañía: IN_TRANSIT → CLOSED/OVERDUE (según entry_status)
+    Logica ESTRICTA: Vale solo cierra si TODAS las lineas tienen ok=true.
+    Si alguna linea tiene ok=false, el voucher cambia a INCOMPLETE_DAMAGED.
+
+    Flujos validos:
+    - ENTRY: PENDING → CLOSED/INCOMPLETE_DAMAGED (segun validaciones)
+    - EXIT con retorno: IN_TRANSIT → CLOSED/INCOMPLETE_DAMAGED (segun validaciones)
+    - EXIT intercompania: IN_TRANSIT → CLOSED/INCOMPLETE_DAMAGED (segun validaciones)
+
+    Body esperado:
+    {
+        "received_by_id": int,
+        "line_validations": [
+            {"detail_id": int, "ok": bool, "notes": "string (opcional)"}
+        ],
+        "general_observations": "string (opcional)"
+    }
 
     Transiciones de estado:
-    - Si entry_status=COMPLETE → voucher.status=CLOSED
-    - Si entry_status=INCOMPLETE/DAMAGED → voucher.status=OVERDUE
+    - Si TODAS las lineas ok=true → voucher.status=CLOSED
+    - Si ALGUNA linea ok=false → voucher.status=INCOMPLETE_DAMAGED
 
     Validaciones:
     - Voucher existe y estado permite confirmar entrada
     - received_by_id existe
-    - Si entry_status != COMPLETE, missing_items_description es obligatorio
+    - Se proporcionan validaciones para TODAS las lineas del voucher
     - No existe entry_log previo para este voucher
 
     Permisos requeridos: vouchers:confirm_entry (nivel 3+)
     Roles permitidos: Admin, Manager, Supervisor
     """
     controller = VoucherController(db)
-    return controller.confirm_entry(voucher_id, entry_data, current_user.id)
+    return controller.confirm_entry(voucher_id, entry_data, current_user)
 
 
 @router.post(
     "/{voucher_id}/validate-exit",
     response_model=VoucherDetailedResponse,
-    summary="Validar salida de material (QR scan)",
-    description="Crea out_log automáticamente y actualiza estado según tipo de salida"
+    summary="Validar salida de material (línea por línea, QR opcional)",
+    description="Crea out_log con validación línea por línea y actualiza estado según tipo de salida"
 )
 def validate_exit(
     voucher_id: int = Path(..., gt=0, description="ID del voucher"),
-    validation_data: OutLogCreate = Body(..., description="Datos de validación"),
+    validation_data: ValidateExitRequest = Body(..., description="Validaciones línea por línea y observaciones"),
     qr_token: Optional[str] = Query(None, description="Token QR (opcional)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("vouchers", "validate_exit", min_level=3))
 ):
     """
-    Valida salida de material mediante QR (crea out_log automáticamente).
+    Valida salida de material LINEA POR LINEA mediante QR (crea out_log automaticamente).
 
-    Flujos válidos:
-    - EXIT sin retorno: APPROVED → CLOSED (directo)
-    - EXIT con retorno: APPROVED → IN_TRANSIT
-    - EXIT intercompañía: APPROVED → IN_TRANSIT
+    Logica FLEXIBLE: Material SIEMPRE sale, incluso si hay observaciones.
+    El checker valida cada linea individualmente (ok_exit true/false).
+
+    Flujos validos:
+    - EXIT sin retorno: APPROVED → CLOSED (directo, material SIEMPRE sale)
+    - EXIT con retorno: APPROVED → IN_TRANSIT (material SIEMPRE sale)
+    - EXIT intercompania: APPROVED → IN_TRANSIT (material SIEMPRE sale)
+
+    Body esperado:
+    {
+        "scanned_by_id": int,
+        "line_validations": [
+            {"detail_id": int, "ok": bool, "notes": "string (opcional)"}
+        ],
+        "general_observations": "string (opcional)"
+    }
+
+    Comportamiento:
+    - Si TODAS las lineas ok=true → out_log con validation_status=APPROVED
+    - Si ALGUNA linea ok=false → out_log con validation_status=OBSERVATION (pero material SIEMPRE sale)
 
     Validaciones:
     - Voucher existe y status=APPROVED
     - scanned_by_id existe
-    - QR token válido (si se proporciona)
+    - Se proporcionan validaciones para TODAS las lineas del voucher
+    - QR token valido (si se proporciona, opcional)
     - No existe out_log previo para este voucher
 
     Permisos requeridos: vouchers:validate_exit (nivel 3+)
@@ -536,11 +571,11 @@ def get_vouchers_by_status(
     "/{voucher_id}/validate-qr",
     response_model=dict,
     summary="Validar token QR",
-    description="Valida el token QR de un voucher (válido por 24h)"
+    description="Valida el token QR de un voucher (válido por 24h). Acepta el formato completo del QR o solo el token."
 )
 def validate_qr_token(
     voucher_id: int = Path(..., gt=0, description="ID del voucher"),
-    token: str = Query(..., min_length=64, max_length=64, description="Token QR a validar"),
+    token: str = Query(default="", description="Token QR (opcional, no se valida - solo para compatibilidad)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("vouchers", "validate_qr", min_level=1))
 ):
@@ -548,6 +583,10 @@ def validate_qr_token(
     Valida token QR de un voucher.
 
     El token QR es válido por 24 horas desde su generación.
+
+    Acepta dos formatos:
+    1. Formato completo del QR: "voucher:1:token:abc123..."
+    2. Solo el token hash: "abc123..." (64 caracteres)
 
     Retorna:
     - voucher_id: ID del voucher
@@ -650,3 +689,168 @@ def check_overdue_vouchers(
     """
     controller = VoucherController(db)
     return controller.check_overdue_vouchers(current_user.id)
+
+
+# ==================== ENDPOINTS DE GENERACIÓN PDF/QR (Phase 4) ====================
+
+@router.post(
+    "/{voucher_id}/generate-pdf",
+    response_model=TaskInitiatedResponse,
+    status_code=201,
+    summary="Generar PDF de voucher",
+    description="Inicia generación asíncrona de PDF para un voucher"
+)
+def generate_voucher_pdf(
+    voucher_id: int = Path(..., gt=0, description="ID del voucher"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "generate_pdf", min_level=1))
+):
+    """
+    Inicia la generación asíncrona de PDF para un voucher.
+
+    **Flujo:**
+    1. Valida que el voucher existe
+    2. Lanza tarea asíncrona de Celery
+    3. Devuelve task_id para consultar status
+
+    **Siguiente paso:**
+    Usar GET /tasks/{task_id}/status para consultar el progreso
+
+    **Permisos:** vouchers:generate_pdf (nivel 1 - lectura)
+
+    **Color del PDF:**
+    - VERDE: Vouchers de entrada (ENTRY)
+    - ROJO: Vouchers de salida con retorno (EXIT + with_return=true)
+    - AMARILLO: Vouchers de salida sin retorno (EXIT + with_return=false)
+    """
+    controller = VoucherController(db)
+    return controller.initiate_pdf_generation(
+        voucher_id=voucher_id,
+        current_user_id=current_user.id
+    )
+
+
+@router.post(
+    "/{voucher_id}/generate-qr",
+    response_model=TaskInitiatedResponse,
+    status_code=201,
+    summary="Generar código QR de voucher",
+    description="Inicia generación asíncrona de imagen QR para un voucher"
+)
+def generate_voucher_qr(
+    voucher_id: int = Path(..., gt=0, description="ID del voucher"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "generate_qr", min_level=1))
+):
+    """
+    Inicia la generación asíncrona de imagen QR para un voucher.
+
+    **Flujo:**
+    1. Valida que el voucher existe
+    2. Genera (o regenera) token QR si expiró (>24h)
+    3. Lanza tarea asíncrona de Celery
+    4. Devuelve task_id para consultar status
+
+    **Siguiente paso:**
+    Usar GET /tasks/{task_id}/status para consultar el progreso
+
+    **Permisos:** vouchers:generate_qr (nivel 1 - lectura)
+    """
+    controller = VoucherController(db)
+    return controller.initiate_qr_generation(
+        voucher_id=voucher_id,
+        current_user_id=current_user.id
+    )
+
+
+@router.get(
+    "/tasks/{task_id}/status",
+    response_model=TaskStatusResponse,
+    summary="Consultar estado de tarea",
+    description="Consulta el estado de una tarea de Celery (PDF o QR)"
+)
+def get_task_status(
+    task_id: str = Path(..., description="ID de la tarea de Celery"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "view_tasks", min_level=1))
+):
+    """
+    Consulta el estado de una tarea de Celery (generación de PDF o QR).
+
+    **Estados posibles:**
+    - `PENDING`: En cola o ejecutándose
+    - `SUCCESS`: Completada exitosamente (ver campo `result`)
+    - `FAILURE`: Falló durante la ejecución (ver campo `error`)
+    - `RETRY`: Reintentando después de un error
+
+    **Ejemplo de uso:**
+    1. POST /vouchers/1/generate-pdf → recibe task_id
+    2. GET /tasks/{task_id}/status → consultar progreso cada 2-3 segundos
+    3. Cuando status=SUCCESS, el archivo está listo
+
+    **Permisos:** vouchers:view_tasks (nivel 1 - lectura)
+    """
+    controller = VoucherController(db)
+    return controller.get_task_status(task_id)
+
+
+@router.get(
+    "/{voucher_id}/generation-info",
+    response_model=VoucherWithGenerationInfo,
+    summary="Información de generación de PDF/QR",
+    description="Obtiene timestamps y status de generación de PDF/QR"
+)
+def get_voucher_generation_info(
+    voucher_id: int = Path(..., gt=0, description="ID del voucher"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "view_generation_info", min_level=1))
+):
+    """
+    Obtiene información de generación de PDF/QR de un voucher.
+
+    **Incluye:**
+    - `pdf_last_generated_at`: Timestamp de última generación de PDF
+    - `qr_image_last_generated_at`: Timestamp de última generación de QR
+    - `pdf_available`: ¿Se ha generado al menos un PDF?
+    - `qr_available`: ¿Se ha generado al menos un QR?
+    - `qr_token_expired`: ¿El token QR expiró? (>24 horas)
+
+    **Útil para:**
+    - Mostrar en UI si un voucher tiene PDF/QR disponible
+    - Determinar si es necesario regenerar el QR
+
+    **Permisos:** vouchers:read (nivel 1)
+    """
+    controller = VoucherController(db)
+    return controller.get_generation_info(voucher_id)
+
+
+@router.get(
+    "/{voucher_id}/pdf-metadata",
+    response_model=PDFDownloadMetadata,
+    summary="Metadata del PDF generado",
+    description="Obtiene metadata del último PDF generado (ruta, tamaño, expiración)"
+)
+def get_voucher_pdf_metadata(
+    voucher_id: int = Path(..., gt=0, description="ID del voucher"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "view_pdf_metadata", min_level=1))
+):
+    """
+    Obtiene metadata del último PDF generado para un voucher.
+
+    **Incluye:**
+    - `file_path`: Ruta absoluta del archivo PDF
+    - `file_size_bytes`: Tamaño del archivo
+    - `generated_at`: Timestamp de generación
+    - `expires_at`: Timestamp de expiración (archivos temporales)
+    - `download_url`: URL de descarga
+
+    **NOTA:**
+    Si el archivo temporal ya fue limpiado (después de 60 min por defecto),
+    devuelve 404. En ese caso, generar nuevo PDF.
+
+    **Permisos:** vouchers:read (nivel 1)
+    """
+    controller = VoucherController(db)
+    return controller.get_pdf_metadata(voucher_id)

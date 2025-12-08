@@ -29,7 +29,15 @@ from app.entities.vouchers.schemas.voucher_schemas import (
     EntryLogCreate,
     EntryLogResponse,
     OutLogCreate,
-    OutLogResponse
+    OutLogResponse,
+    # Schemas de validacion linea por linea
+    ConfirmEntryRequest,
+    ValidateExitRequest,
+    # Schemas de PDF/QR (Phase 4)
+    TaskInitiatedResponse,
+    TaskStatusResponse,
+    VoucherWithGenerationInfo,
+    PDFDownloadMetadata
 )
 from app.entities.vouchers.models.voucher import VoucherStatusEnum, VoucherTypeEnum
 from app.entities.vouchers.models.entry_log import EntryStatusEnum
@@ -264,11 +272,16 @@ class VoucherController:
             vouchers = self.service.list_vouchers(skip, limit, active_only)
             total = len(vouchers)
 
+            # Calcular total de páginas
+            import math
+            total_pages = math.ceil(total / limit) if limit > 0 else 1
+
             return VoucherListResponse(
                 vouchers=[VoucherResponse.model_validate(v) for v in vouchers],
                 total=total,
                 page=1,
-                per_page=limit
+                per_page=limit,
+                total_pages=total_pages
             )
 
         except Exception as e:
@@ -466,16 +479,19 @@ class VoucherController:
     def confirm_entry(
         self,
         voucher_id: int,
-        entry_data: EntryLogCreate,
-        current_user_id: int
+        entry_data: ConfirmEntryRequest,
+        current_user
     ) -> VoucherDetailedResponse:
         """
-        Confirma recepción física de material (crea entry_log automáticamente).
+        Confirma recepcion fisica de material LINEA POR LINEA (crea entry_log automaticamente).
+
+        Logica ESTRICTA: Vale solo cierra si TODAS las lineas tienen ok=true.
+        Si alguna linea tiene ok=false, el voucher cambia a INCOMPLETE_DAMAGED.
 
         Args:
             voucher_id: ID del voucher
-            entry_data: Datos de recepción
-            current_user_id: Usuario que confirma
+            entry_data: ConfirmEntryRequest con line_validations y observaciones
+            current_user: Usuario que confirma (usado para firma digital automatica)
 
         Returns:
             Voucher actualizado con entry_log incluido
@@ -486,17 +502,26 @@ class VoucherController:
             HTTPException 500: Si error interno
         """
         try:
+            # Convertir LineValidation Pydantic objects a dicts para service
+            line_validations = [
+                {
+                    "detail_id": validation.detail_id,
+                    "ok": validation.ok,
+                    "notes": validation.notes
+                }
+                for validation in entry_data.line_validations
+            ]
+
             voucher = self.service.confirm_entry_voucher(
                 voucher_id=voucher_id,
-                entry_status=entry_data.entry_status,
                 received_by_id=entry_data.received_by_id,
-                missing_items_description=entry_data.missing_items_description,
-                notes=entry_data.notes,
-                confirming_user_id=current_user_id
+                line_validations=line_validations,
+                general_observations=entry_data.general_observations,
+                confirming_user_id=current_user.id
             )
 
-            # Formatear respuesta detallada con logs
-            return self._format_detailed_response(voucher, include_logs=True)
+            # Retornar voucher actualizado
+            return VoucherDetailedResponse.model_validate(voucher)
 
         except EntityNotFoundError as e:
             raise HTTPException(
@@ -517,16 +542,19 @@ class VoucherController:
     def validate_exit(
         self,
         voucher_id: int,
-        validation_data: OutLogCreate,
+        validation_data: ValidateExitRequest,
         qr_token: Optional[str],
         current_user_id: int
     ) -> VoucherDetailedResponse:
         """
-        Valida salida de material mediante QR (crea out_log automáticamente).
+        Valida salida de material LINEA POR LINEA mediante QR (crea out_log automaticamente).
+
+        Logica FLEXIBLE: Material SIEMPRE sale, incluso si hay observaciones.
+        El checker valida cada linea individualmente (ok_exit true/false).
 
         Args:
             voucher_id: ID del voucher
-            validation_data: Datos de validación
+            validation_data: ValidateExitRequest con line_validations y observaciones
             qr_token: Token QR (opcional)
             current_user_id: Usuario que valida
 
@@ -535,21 +563,30 @@ class VoucherController:
 
         Raises:
             HTTPException 404: Si no existe
-            HTTPException 400: Si estado no permite o QR inválido
+            HTTPException 400: Si estado no permite o QR invalido
             HTTPException 500: Si error interno
         """
         try:
+            # Convertir LineValidation Pydantic objects a dicts para service
+            line_validations = [
+                {
+                    "detail_id": validation.detail_id,
+                    "ok": validation.ok,
+                    "notes": validation.notes
+                }
+                for validation in validation_data.line_validations
+            ]
+
             voucher = self.service.validate_exit_voucher(
                 voucher_id=voucher_id,
-                validation_status=validation_data.validation_status,
                 scanned_by_id=validation_data.scanned_by_id,
-                observations=validation_data.observations,
-                qr_token=qr_token,
+                line_validations=line_validations,
+                general_observations=validation_data.general_observations,
                 validating_user_id=current_user_id
             )
 
-            # Formatear respuesta detallada con logs
-            return self._format_detailed_response(voucher, include_logs=True)
+            # Retornar voucher actualizado
+            return VoucherDetailedResponse.model_validate(voucher)
 
         except EntityNotFoundError as e:
             raise HTTPException(
@@ -909,4 +946,241 @@ class VoucherController:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error en proceso automático: {str(e)}"
+            )
+
+    # ==================== GENERACIÓN PDF/QR (Phase 4) ====================
+
+    def initiate_pdf_generation(
+        self,
+        voucher_id: int,
+        current_user_id: int
+    ) -> TaskInitiatedResponse:
+        """
+        Inicia la generación asíncrona de PDF para un voucher.
+
+        Args:
+            voucher_id: ID del voucher
+            current_user_id: ID del usuario que solicita la operación
+
+        Returns:
+            TaskInitiatedResponse con task_id y status PENDING
+
+        Raises:
+            HTTPException 404: Si el voucher no existe
+            HTTPException 500: Si error al iniciar tarea
+        """
+        try:
+            result = self.service.initiate_pdf_generation(
+                voucher_id=voucher_id,
+                current_user_id=current_user_id
+            )
+
+            return TaskInitiatedResponse(
+                task_id=result["task_id"],
+                status=result["status"],
+                message=result["message"],
+                voucher_folio=None  # Se puede agregar si es necesario
+            )
+
+        except EntityNotFoundError as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al iniciar generación de PDF: {str(e)}"
+            )
+
+    def initiate_qr_generation(
+        self,
+        voucher_id: int,
+        current_user_id: int
+    ) -> TaskInitiatedResponse:
+        """
+        Inicia la generación asíncrona de imagen QR para un voucher.
+
+        Args:
+            voucher_id: ID del voucher
+            current_user_id: ID del usuario que solicita la operación
+
+        Returns:
+            TaskInitiatedResponse con task_id y status PENDING
+
+        Raises:
+            HTTPException 404: Si el voucher no existe
+            HTTPException 500: Si error al iniciar tarea
+        """
+        try:
+            result = self.service.initiate_qr_generation(
+                voucher_id=voucher_id,
+                current_user_id=current_user_id
+            )
+
+            return TaskInitiatedResponse(
+                task_id=result["task_id"],
+                status=result["status"],
+                message=result["message"],
+                voucher_folio=None  # Se puede agregar si es necesario
+            )
+
+        except EntityNotFoundError as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al iniciar generación de QR: {str(e)}"
+            )
+
+    def get_task_status(self, task_id: str) -> TaskStatusResponse:
+        """
+        Consulta el estado de una tarea de Celery (PDF o QR).
+
+        Args:
+            task_id: ID de la tarea de Celery
+
+        Returns:
+            TaskStatusResponse con información del estado actual
+
+        Raises:
+            HTTPException 500: Si error al consultar tarea
+        """
+        try:
+            result = self.service.get_task_status(task_id)
+
+            return TaskStatusResponse(
+                task_id=result["task_id"],
+                status=result["status"],
+                message=result["message"],
+                result=result.get("result"),
+                error=result.get("error")
+            )
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al consultar estado de tarea: {str(e)}"
+            )
+
+    def get_generation_info(self, voucher_id: int) -> VoucherWithGenerationInfo:
+        """
+        Obtiene información de generación de PDF/QR de un voucher.
+
+        Incluye timestamps de última generación y flags calculados.
+
+        Args:
+            voucher_id: ID del voucher
+
+        Returns:
+            VoucherWithGenerationInfo con información completa
+
+        Raises:
+            HTTPException 404: Si el voucher no existe
+            HTTPException 500: Si error interno
+        """
+        try:
+            voucher = self.service.get_voucher(voucher_id)
+
+            # Construir respuesta con flags calculados
+            from datetime import datetime, timedelta
+
+            pdf_available = voucher.pdf_last_generated_at is not None
+            qr_available = voucher.qr_image_last_generated_at is not None
+            qr_token_expired = False
+
+            if voucher.qr_image_last_generated_at:
+                expiration = voucher.qr_image_last_generated_at + timedelta(hours=24)
+                qr_token_expired = datetime.utcnow() > expiration
+
+            return VoucherWithGenerationInfo(
+                **voucher.__dict__,
+                pdf_available=pdf_available,
+                qr_available=qr_available,
+                qr_token_expired=qr_token_expired
+            )
+
+        except EntityNotFoundError as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al obtener información de generación: {str(e)}"
+            )
+
+    def get_pdf_metadata(self, voucher_id: int) -> PDFDownloadMetadata:
+        """
+        Obtiene metadata del último PDF generado para un voucher.
+
+        NOTA: Esta función requiere que el PDF exista en disco.
+        Si el PDF temporal ya fue limpiado, devuelve 404.
+
+        Args:
+            voucher_id: ID del voucher
+
+        Returns:
+            PDFDownloadMetadata con información del archivo
+
+        Raises:
+            HTTPException 404: Si voucher no existe o PDF no disponible
+            HTTPException 500: Si error interno
+        """
+        try:
+            voucher = self.service.get_voucher(voucher_id)
+
+            if not voucher.pdf_last_generated_at:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Este voucher no tiene PDF generado"
+                )
+
+            # Construir ruta esperada del PDF
+            from pathlib import Path
+            from app.config.settings import settings
+
+            timestamp = voucher.pdf_last_generated_at.strftime("%Y%m%d_%H%M%S")
+            filename = f"voucher_{voucher_id}_{timestamp}.pdf"
+            pdf_path = Path(settings.pdf_temp_dir) / filename
+
+            # Verificar si el archivo existe
+            if not pdf_path.exists():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="El archivo PDF temporal ya no está disponible. Genere uno nuevo."
+                )
+
+            # Obtener información del archivo
+            file_size = pdf_path.stat().st_size
+
+            # Calcular expiración
+            from datetime import timedelta
+            expires_at = voucher.pdf_last_generated_at + timedelta(minutes=settings.pdf_temp_file_cleanup_minutes)
+
+            return PDFDownloadMetadata(
+                voucher_id=voucher.id,
+                voucher_folio=voucher.folio,
+                file_path=str(pdf_path.absolute()),
+                file_size_bytes=file_size,
+                generated_at=voucher.pdf_last_generated_at,
+                expires_at=expires_at,
+                download_url=f"/api/vouchers/{voucher_id}/download-pdf"
+            )
+
+        except EntityNotFoundError as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al obtener metadata del PDF: {str(e)}"
             )

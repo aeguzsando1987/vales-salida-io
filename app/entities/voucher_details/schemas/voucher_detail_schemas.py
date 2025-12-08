@@ -21,6 +21,12 @@ class VoucherDetailBase(BaseModel):
     part_number: Optional[str] = Field(None, max_length=100, description="Número de parte")
     notes: Optional[str] = Field(None, description="Notas adicionales")
 
+    # Line-by-Line Validation Fields
+    ok_exit: Optional[bool] = Field(None, description="Validación visual de salida por vigilante")
+    ok_exit_notes: Optional[str] = Field(None, description="Observaciones si ok_exit=false")
+    ok_entry: Optional[bool] = Field(None, description="Validación visual de entrada por gerente/supervisor")
+    ok_entry_notes: Optional[str] = Field(None, description="Observaciones si ok_entry=false")
+
 
 # ==================== CREATE SCHEMA ====================
 
@@ -136,6 +142,12 @@ class VoucherDetailUpdate(BaseModel):
     part_number: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = None
     product_id: Optional[int] = None
+
+    # Line-by-Line Validation Fields
+    ok_exit: Optional[bool] = None
+    ok_exit_notes: Optional[str] = None
+    ok_entry: Optional[bool] = None
+    ok_entry_notes: Optional[str] = None
 
     model_config = ConfigDict(
         json_schema_extra={
