@@ -56,7 +56,7 @@ def create_detail(
         description="Si True, salta búsqueda por similitud y auto-crea producto"
     ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("voucher_details", "create", min_level=3))
+    current_user: User = Depends(require_permission("voucher-details", "create", min_level=3))
 ):
     """Crea línea de detalle con auto-cache de productos"""
     controller = VoucherDetailController(db)
@@ -76,7 +76,7 @@ def create_detail(
 def get_detail(
     detail_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("voucher_details", "get", min_level=1))
+    current_user: User = Depends(require_permission("voucher-details", "get", min_level=1))
 ):
     """Obtiene detalle por ID"""
     controller = VoucherDetailController(db)
@@ -92,7 +92,7 @@ def get_detail(
 def get_details_by_voucher(
     voucher_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("voucher_details", "list", min_level=1))
+    current_user: User = Depends(require_permission("voucher-details", "get", min_level=1))
 ):
     """Obtiene todas las líneas de un vale"""
     controller = VoucherDetailController(db)
@@ -109,7 +109,7 @@ def update_detail(
     detail_id: int,
     detail_data: VoucherDetailUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("voucher_details", "update", min_level=2))
+    current_user: User = Depends(require_permission("voucher-details", "update", min_level=2))
 ):
     """Actualiza detalle"""
     controller = VoucherDetailController(db)
@@ -125,7 +125,7 @@ def update_detail(
 def delete_detail(
     detail_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("voucher_details", "delete", min_level=4))
+    current_user: User = Depends(require_permission("voucher-details", "delete", min_level=4))
 ):
     """Elimina detalle (soft delete)"""
     controller = VoucherDetailController(db)
@@ -147,7 +147,7 @@ def search_products(
     q: str = Query(..., min_length=1, description="Término de búsqueda"),
     limit: int = Query(default=10, ge=1, le=50, description="Límite de resultados"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("voucher_details", "search", min_level=1))
+    current_user: User = Depends(require_permission("voucher-details", "search", min_level=1))
 ):
     """Busca productos por similitud (autocomplete)"""
     controller = VoucherDetailController(db)

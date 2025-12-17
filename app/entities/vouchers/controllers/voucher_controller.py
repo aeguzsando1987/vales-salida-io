@@ -252,15 +252,17 @@ class VoucherController:
         self,
         skip: int = 0,
         limit: int = 100,
-        active_only: bool = True
+        active_only: bool = True,
+        current_user = None
     ) -> VoucherListResponse:
         """
-        Lista todos los vouchers paginados.
+        Lista todos los vouchers paginados (filtrados por role si aplica).
 
         Args:
             skip: Registros a saltar
             limit: Máximo de registros
             active_only: Solo activos
+            current_user: Usuario actual (para filtrar si role=4)
 
         Returns:
             Lista paginada de vouchers
@@ -269,7 +271,13 @@ class VoucherController:
             HTTPException 500: Si error interno
         """
         try:
-            vouchers = self.service.list_vouchers(skip, limit, active_only)
+            vouchers = self.service.list_vouchers(
+                skip,
+                limit,
+                active_only,
+                current_user_id=current_user.id if current_user else None,
+                current_user_role=current_user.role if current_user else None
+            )
             total = len(vouchers)
 
             # Calcular total de páginas
@@ -752,10 +760,8 @@ class VoucherController:
                 limit=limit
             )
 
-            return VoucherSearchResponse(
-                results=[VoucherResponse.model_validate(v) for v in vouchers],
-                total=len(vouchers)
-            )
+            # Retornar lista directa de vouchers
+            return [VoucherSearchResponse.model_validate(v) for v in vouchers]
 
         except Exception as e:
             raise HTTPException(

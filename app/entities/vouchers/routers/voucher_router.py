@@ -197,9 +197,13 @@ def list_vouchers(
     - active_only: Si es True, solo registros activos
 
     Permisos requeridos: vouchers:list (nivel 1+)
+
+    Filtrado por usuario:
+    - Role 4 (Lector): solo ve sus propios vales
+    - Otros roles: ven todos los vales
     """
     controller = VoucherController(db)
-    return controller.list_vouchers(skip, limit, active_only)
+    return controller.list_vouchers(skip, limit, active_only, current_user=current_user)
 
 
 # ==================== STATE TRANSITION ENDPOINTS ====================
@@ -468,7 +472,7 @@ def get_voucher_logs(
 
 @router.get(
     "/search/advanced",
-    response_model=VoucherSearchResponse,
+    response_model=list[VoucherSearchResponse],
     summary="Búsqueda avanzada de vouchers",
     description="Búsqueda con múltiples filtros"
 )

@@ -193,6 +193,22 @@ class IndividualController:
         Crear individuo con usuario - Compatibilidad con POST /individuals/with-user
         """
         try:
+            # DEBUG: Log de datos recibidos
+            print(f"\n=== DEBUG: Datos recibidos en controller ===")
+            print(f"Data completo: {data}")
+            print(f"Tipos: {[(k, type(v).__name__) for k, v in data.items()]}")
+            print(f"==========================================\n")
+
+            # Helper para limpiar strings vacíos y espacios
+            def clean_string_field(value):
+                """Convierte strings vacíos y solo espacios en None"""
+                if value is None:
+                    return None
+                if isinstance(value, str):
+                    cleaned = value.strip()
+                    return cleaned if cleaned else None
+                return value
+
             # Separar datos de usuario y individuo
             user_data = {
                 'user_email': data.get('user_email'),
@@ -201,14 +217,19 @@ class IndividualController:
                 'user_role': data.get('user_role', 4)
             }
 
+            # Limpiar campos opcionales para evitar validar strings vacíos
             individual_data = {
                 'name': data.get('name'),  # Formato legacy
                 'last_name': data.get('last_name'),
                 'email': data.get('email'),
-                'phone': data.get('phone'),
-                'address': data.get('address'),
+                'phone': clean_string_field(data.get('phone')),
+                'address': clean_string_field(data.get('address')),
                 'status': data.get('status', 'active')
             }
+
+            print(f"\n=== DEBUG: Después de limpiar ===")
+            print(f"individual_data: {individual_data}")
+            print(f"==========================================\n")
 
             user_result, individual_result = self.service.create_individual_with_user(
                 user_data, individual_data

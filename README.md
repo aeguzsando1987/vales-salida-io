@@ -10,21 +10,21 @@
 
 # Información General
 **Repositorio:** https://github.com/aeguzsando1987/vales-salida-io
-**Última Actualización:** 2025-11-19
-**Estado de desarrollo:** Fase 1 - 40% Completado
-Aún en desarrollo. Se agregaron nuevas entidades y se implementaron las principales funcionalidades para vauchers de entrada y salida. Se agregaron los permisos para los endpoints y se implementaron los controladores y servicios para los vauchers. Aun hacen falta entidades de trazabalidad de transacciones y un demo de GUI.
+**Última Actualización:** 2025-12-08
+**Estado de desarrollo:** Fase 4 - 90% Completado
+Ultimas funcionalidades agregadas, incluyendo la generacion de archivos PDF y validacion mediante lectura de códigos QR.
 
 ---
 
 ##  Características Core del Sistema
 
 ### Core Feats.
-- **Validación QR** - Códigos QR con tokens seguros para validación de salidas
+- **Validación QR** - Códigos QR con tokens seguros para busqueda de vales
 - **Gestión de Retornos** - Seguimiento de material con y sin retorno
-- **Control de Estados** - 6 estados: PENDING, APPROVED, IN_TRANSIT, OVERDUE, CLOSED, CANCELLED
+- **Control de Estados** - 7 estados: PENDING, APPROVED, IN_TRANSIT, OVERDUE, CLOSED, CANCELLED, DAMAGED_INCOMPLETE
 - **Múltiples Ubicaciones** - Sucursales, almacenes, proyectos, obras
 - **Firmas Digitales** - Trazabilidad completa con approved_by, delivered_by, received_by
-- **Generación de PDF** - Templates profesionales para impresión (Pendiente)
+- **Generación de PDF** - Templates profesionales para impresión 
 - **Sistema de Notificaciones** - Alertas por email/SMS (Pendiente)
 
 ### Arquitectura Técnica
@@ -47,11 +47,8 @@ Aún en desarrollo. Se agregaron nuevas entidades y se implementaron las princip
 - **Products** - Cache de productos frecuentes (8 categorías, 10 endpoints)
 - **Vaucher** - Vales unificados ENTRY/EXIT (20 endpoints)
 - **VaucherDetails** - Líneas de artículos (máx 20 por vale)
-
-**En Desarrollo:**
 - **EntryLogs** - Registro de entradas físicas
 - **OutLogs** - Registro de escaneos QR
-
 
 ---
 
@@ -113,8 +110,10 @@ python main.py
 - ReDoc para documentación: http://localhost:8001/redoc
 
 **Default Admin:**
+Aparece en archivo .env.example como:
 - Email: `admin@tuempresa.com`
 - Password: `root`
+Cambiarlo en env por valores de su preferencia
 ---
 
 ## Documentación
@@ -436,5 +435,5 @@ MIT License - Free for personal and commercial use.
 
 ---
 
-**Version:** 1.2.0
-**Last Updated:** 2025-11-11
+**Version:** 1.3
+**Last Updated:** 2025-12-08

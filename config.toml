@@ -8,7 +8,7 @@
 [app]
 title = "Sistema para automatizacion de vales de entradas y salidas de materiales"
 description = "Este e sun sistema hibrido de monolitico y en capas, utiliza una plantilla de desarrollo de API basada en FastAPI"
-version = "1.0.0"
+version = "1.3.0"
 debug = false  # Sobreescrito por .env en desarrollo
 
 [app.features]

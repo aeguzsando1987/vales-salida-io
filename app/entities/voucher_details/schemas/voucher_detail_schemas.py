@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
+from app.entities.products.schemas.product_schemas import ProductCategoryEnum
 
 
 # ==================== BASE SCHEMAS ====================
@@ -42,6 +43,10 @@ class VoucherDetailCreate(VoucherDetailBase):
     """
     voucher_id: int = Field(..., description="ID del vale")
     product_id: Optional[int] = Field(None, description="ID del producto (opcional, si ya seleccionó)")
+    category: Optional[ProductCategoryEnum] = Field(
+        None,
+        description="Categoría del producto (opcional, para auto-creación en cache)"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={

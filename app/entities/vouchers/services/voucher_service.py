@@ -751,19 +751,35 @@ class VoucherService:
         self,
         skip: int = 0,
         limit: int = 100,
-        active_only: bool = True
+        active_only: bool = True,
+        current_user_id: Optional[int] = None,
+        current_user_role: Optional[int] = None
     ) -> List[Voucher]:
         """
-        Lista todos los vouchers
+        Lista todos los vouchers con filtro por usuario para role 4 (Reader).
+
+        - Admin/Manager/Supervisor (roles 1,2,3): ven todos los vales
+        - Reader (role 4): solo ve sus propios vales (created_by)
 
         Args:
             skip: Registros a saltar
             limit: Máximo de registros
             active_only: Solo activos
+            current_user_id: ID del usuario actual
+            current_user_role: Rol del usuario actual
 
         Returns:
             Lista de vouchers
         """
+        # Filtro para role 4 (Reader): solo sus propios vales
+        if current_user_role == 4 and current_user_id:
+            query = self.db.query(Voucher).filter(Voucher.is_deleted == False)
+            if active_only:
+                query = query.filter(Voucher.is_active == True)
+            query = query.filter(Voucher.created_by == current_user_id)
+            return query.offset(skip).limit(limit).all()
+
+        # Admin/Manager/Supervisor: todos los vales
         return self.repository.get_all(skip=skip, limit=limit, active_only=active_only)
 
     # ==================== TRANSICIONES DE ESTADO ====================

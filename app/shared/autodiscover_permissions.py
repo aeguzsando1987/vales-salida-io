@@ -60,6 +60,8 @@ def infer_action_from_method_and_path(http_method: str, path: str) -> str:
         GET /entities/{id} -> "get"
         GET /entities/search -> "search"
         POST /entities/ -> "create"
+        POST /entities/{id}/approve -> "approve" (custom action)
+        POST /entities/{id}/cancel -> "cancel" (custom action)
         PUT /entities/{id} -> "update"
         PATCH /entities/{id} -> "update"
         DELETE /entities/{id} -> "delete"
@@ -73,7 +75,25 @@ def infer_action_from_method_and_path(http_method: str, path: str) -> str:
     """
     method = http_method.upper()
 
-    # Mapeo basico por metodo
+    # Limpiar la ruta
+    clean_path = path.strip("/")
+    parts = clean_path.split("/")
+
+    # Buscar acciones personalizadas en la ruta
+    # Ejemplo: /vouchers/{voucher_id}/approve → "approve"
+    # Ejemplo: /vouchers/{voucher_id}/confirm-entry → "confirm_entry"
+    for part in reversed(parts):  # Buscar de atrás hacia adelante
+        # Ignorar parámetros de ruta
+        if part.startswith("{"):
+            continue
+
+        # Si encontramos un segmento que no es la entidad base, es probablemente la acción
+        if part not in ["", parts[0]]:  # parts[0] es la entidad
+            # Convertir guiones a guiones bajos para nombres de Python
+            action = part.replace("-", "_")
+            return action
+
+    # Si no hay acción personalizada, usar mapeo básico por método
     action_map = {
         "POST": "create",
         "PUT": "update",

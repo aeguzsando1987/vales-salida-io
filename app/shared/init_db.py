@@ -289,6 +289,15 @@ def initialize_permissions(db: Session):
             "Reader": 1,        # Colaborador: solo lectura
             "Guest": 0,
             "Checker": 1
+        },
+        "voucher-details": {
+            # Líneas de detalle de vales - similar a vouchers
+            "Admin": 4,
+            "Manager": 4,
+            "Collaborator": 3,  # Supervisor: puede crear/editar líneas
+            "Reader": 3,        # Colaborador: puede crear líneas
+            "Guest": 0,
+            "Checker": 1        # Vigilancia: solo lectura
         }
     }
 

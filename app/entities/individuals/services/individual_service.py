@@ -649,6 +649,8 @@ class IndividualService:
 
     def _validate_user_data(self, user_data: Dict[str, Any]) -> None:
         """Valida datos de usuario para creación."""
+        print(f"\n=== DEBUG: Validando user_data ===")
+        print(f"user_data: {user_data}")
         errors = {}
 
         if not user_data.get('user_email'):
@@ -658,6 +660,7 @@ class IndividualService:
                 validate_email(user_data['user_email'])
             except ValueError as e:
                 errors['user_email'] = str(e)
+                print(f"ERROR email: {e}")
 
         if not user_data.get('user_name'):
             errors['user_name'] = "Nombre de usuario es requerido"
@@ -668,6 +671,7 @@ class IndividualService:
             errors['user_password'] = "Contraseña debe tener al menos 6 caracteres"
 
         if errors:
+            print(f"ERRORES EN USER DATA: {errors}")
             raise EntityValidationError("UserData", errors)
 
     def _email_exists_in_users(self, email: str) -> bool:

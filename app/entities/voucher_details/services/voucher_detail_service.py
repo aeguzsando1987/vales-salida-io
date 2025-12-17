@@ -91,6 +91,7 @@ class VoucherDetailService:
         item_name: str,
         unit_of_measure: str,
         item_description: Optional[str] = None,
+        category: Optional[ProductCategoryEnum] = None,
         created_by_id: Optional[int] = None
     ) -> Product:
         """
@@ -100,19 +101,20 @@ class VoucherDetailService:
             item_name: Nombre del producto
             unit_of_measure: Unidad de medida
             item_description: Descripción opcional
+            category: Categoría del producto (opcional, default: OTHER)
             created_by_id: ID del usuario que crea
 
         Returns:
             Producto creado
         """
-        # Generar código auto con timestamp
-        auto_code = f"AUTO-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        # Generar código auto con timestamp + microsegundos para evitar duplicados
+        auto_code = f"AUTO-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
         new_product = Product(
             name=item_name.strip(),
             code=auto_code,
             description=item_description,
-            category=ProductCategoryEnum.OTHER,  # DEFAULT
+            category=category if category else ProductCategoryEnum.OTHER,  # Usar categoria proporcionada o OTHER
             unit_of_measure=unit_of_measure,
             usage_count=1,  # Inicia en 1
             is_active=True,
@@ -197,6 +199,7 @@ class VoucherDetailService:
                 item_name=detail_data.item_name,
                 unit_of_measure=detail_data.unit_of_measure,
                 item_description=detail_data.item_description,
+                category=detail_data.category,  # ✅ Usar categoría proporcionada
                 created_by_id=created_by_id
             )
             product_id = new_product.id

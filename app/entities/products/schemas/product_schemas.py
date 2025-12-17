@@ -137,6 +137,9 @@ class ProductSearchResponse(BaseModel):
     id: int
     name: str
     code: Optional[str] = None
+    part_number: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[ProductCategoryEnum] = None
     unit_of_measure: str
     usage_count: int
 

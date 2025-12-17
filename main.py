@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from sqlalchemy.orm import Session
 from database import get_db, create_tables, User, ExampleEntity
@@ -49,20 +49,66 @@ app = FastAPI(
 )
 
 # Configurar CORS para webapp_demo
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5500",  # Vanilla JS (Live Server)
-        "http://127.0.0.1:5500",
-        "http://localhost:3000",  # React
-        "http://127.0.0.1:3000",
-        "http://localhost:3002",  # Next.js webapp
-        "http://127.0.0.1:3002"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# IMPORTANTE: En desarrollo permitimos múltiples orígenes
+# En producción, especificar solo los dominios necesarios
+allowed_origins = [
+    "http://localhost:5500",  # Vanilla JS (Live Server)
+    "http://127.0.0.1:5500",
+    "http://localhost:3000",  # React
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",  # Next.js webapp (puerto alternativo)
+    "http://127.0.0.1:3001",
+    "http://localhost:3002",  # Next.js webapp
+    "http://127.0.0.1:3002",
+]
+
+# Agregar orígenes adicionales desde variable de entorno (útil para desarrollo en red)
+additional_origins = os.getenv("CORS_ADDITIONAL_ORIGINS", "")
+if additional_origins:
+    allowed_origins.extend([origin.strip() for origin in additional_origins.split(",")])
+
+# Para desarrollo en red local, permitir todos los orígenes en puertos 3000-3002
+# Comentar esta sección en producción
+if os.getenv("DEBUG", "false").lower() == "true":
+    # Permitir cualquier IP en puertos comunes de desarrollo
+    import re
+
+    class CORSRegexMiddleware(CORSMiddleware):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Patrones para desarrollo: cualquier IP en puertos 3000-5500
+            self.allow_origin_regex_patterns = [
+                re.compile(r"^http://[\d\.]+:3000$"),  # http://IP:3000
+                re.compile(r"^http://[\d\.]+:3002$"),  # http://IP:3002
+                re.compile(r"^http://[\d\.]+:5500$"),  # http://IP:5500
+            ]
+
+        def is_allowed_origin(self, origin: str) -> bool:
+            # Primero verificar lista explícita
+            if origin in self.allow_origins:
+                return True
+            # Luego verificar patrones regex
+            for pattern in self.allow_origin_regex_patterns:
+                if pattern.match(origin):
+                    return True
+            return False
+
+    app.add_middleware(
+        CORSRegexMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    # En producción, solo orígenes específicos
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Configuración OAuth2 para Swagger
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -117,6 +163,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     role: Optional[int] = None
     is_active: Optional[bool] = None
+    password: Optional[str] = Field(None, min_length=6, description="Nueva contraseña (opcional)")
 
 class ExampleUpdate(BaseModel):
     user_id: Optional[int] = None
@@ -173,7 +220,8 @@ def create_user(user_data: UserCreate, db: Session = Depends(get_db), current_us
 
 @app.get("/users", tags=["users"], summary="Listar usuarios")
 def get_users(db: Session = Depends(get_db), current_user = Depends(require_manager_or_admin)):
-    users = db.query(User).all()
+    # Filtrar usuarios no eliminados
+    users = db.query(User).filter(User.is_deleted == False).all()
     return [{"id": u.id, "email": u.email, "name": u.name, "is_active": u.is_active} for u in users]
 
 @app.get("/users/me", tags=["users"], summary="Perfil del usuario actual")
@@ -208,13 +256,19 @@ def get_user_roles():
 
 @app.get("/users/{user_id}", tags=["users"], summary="Obtener usuario específico")
 def get_user(user_id: int, db: Session = Depends(get_db), current_user = Depends(require_manager_or_admin)):
-    user = db.query(User).filter(User.id == user_id).first()
+    # Filtrar usuarios no eliminados
+    user = db.query(User).filter(
+        User.id == user_id,
+        User.is_deleted == False
+    ).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return {"id": user.id, "email": user.email, "name": user.name, "is_active": user.is_active, "created_at": user.created_at}
 
 @app.put("/users/{user_id}", tags=["users"], summary="Actualizar usuario")
 def update_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_db), current_user = Depends(require_manager_or_admin)):
+    from datetime import datetime
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -226,8 +280,19 @@ def update_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_d
 
     # Actualizar campos
     update_data = user_data.dict(exclude_unset=True)
+
+    # Manejar password si se proporciona
+    if 'password' in update_data and update_data['password']:
+        user.password_hash = hash_password(update_data['password'])
+        del update_data['password']  # Remover password plano del dict
+
+    # Actualizar resto de campos
     for field, value in update_data.items():
         setattr(user, field, value)
+
+    # Actualizar campos de auditoría
+    user.updated_at = datetime.utcnow()
+    user.updated_by = current_user.id
 
     db.commit()
     db.refresh(user)
@@ -235,12 +300,24 @@ def update_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_d
 
 @app.delete("/users/{user_id}", tags=["users"], summary="Eliminar usuario (soft delete)")
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user = Depends(require_admin)):
+    from datetime import datetime
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    # Soft delete usando is_deleted
+    # Verificar que no esté ya eliminado
+    if user.is_deleted:
+        raise HTTPException(status_code=400, detail="Usuario ya está eliminado")
+
+    # Soft delete COMPLETO con auditoría
     user.is_deleted = True
+    user.is_active = False          # Desactivar usuario
+    user.deleted_at = datetime.utcnow()  # Fecha de eliminación
+    user.deleted_by = current_user.id    # Quién eliminó
+    user.updated_at = datetime.utcnow()  # Actualizar timestamp
+    user.updated_by = current_user.id    # Quién actualizó
+
     db.commit()
     return {"message": "Usuario eliminado exitosamente (soft delete)"}
 
