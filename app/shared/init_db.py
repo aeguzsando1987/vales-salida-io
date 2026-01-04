@@ -232,7 +232,105 @@ def initialize_permissions(db: Session):
     # Esta sección se ejecuta SIEMPRE para sincronizar nuevos permisos con templates
     print("\nAuto-asignando permisos a roles...")
 
-    # Definir niveles de permiso por defecto GLOBAL para cada rol
+    # MATRIZ DE PERMISOS VALIDADA CONTRA CASOS DE USO
+    # Esta matriz fue extraída de los flujos reales del sistema
+    # Mapeo de roles:
+    #   Admin (role=1) = SUPER_ADMIN
+    #   Manager (role=2) = GERENTE
+    #   Collaborator (role=3) = SUPERVISOR (NO trabajador)
+    #   Reader (role=4) = COLABORADOR (Roberto, Paula, Valerie, Richi)
+    #   Checker (role=6) = VIGILANCIA (Enrique)
+    PERMISSION_MATRIX = {
+        # === VOUCHERS ===
+        'vouchers': {
+            'create': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 3, 'Guest': 0, 'Checker': 0},
+            'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'get': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'update': {'Admin': 4, 'Manager': 2, 'Collaborator': 2, 'Reader': 2, 'Guest': 0, 'Checker': 0},
+            'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            # Acciones de workflow
+            'approve': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'cancel': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'validate_exit': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 3},  # ← Checker DEBE tener 3
+            'confirm_entry': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 3},  # ← Checker DEBE tener 3
+            'view_logs': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            # Búsqueda
+            'search': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'advanced': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            # Generación de documentos
+            'generate_pdf': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'generate_qr': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'view_statistics': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'view_tasks': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'view_generation_info': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'view_pdf_metadata': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'scan_qr': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 3},
+            'maintenance': {'Admin': 4, 'Manager': 4, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+        },
+        # === VOUCHER-DETAILS ===
+        'voucher-details': {
+            'create': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 3, 'Guest': 0, 'Checker': 0},
+            'get': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'update': {'Admin': 4, 'Manager': 2, 'Collaborator': 2, 'Reader': 2, 'Guest': 0, 'Checker': 0},
+            'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 2, 'Reader': 2, 'Guest': 0, 'Checker': 0},
+            'products': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'search_products': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+        },
+        # === COMPANIES ===
+        'companies': {
+            'create': {'Admin': 4, 'Manager': 3, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'get': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'update': {'Admin': 4, 'Manager': 2, 'Collaborator': 2, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+        },
+        # === BRANCHES ===
+        'branches': {
+            'create': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'get': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'update': {'Admin': 4, 'Manager': 2, 'Collaborator': 2, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+        },
+        # === PRODUCTS ===
+        'products': {
+            'create': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 3, 'Guest': 0, 'Checker': 0},
+            'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'get': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'update': {'Admin': 4, 'Manager': 2, 'Collaborator': 2, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+        },
+        # === INDIVIDUALS ===
+        'individuals': {
+            'create': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'get': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'update': {'Admin': 4, 'Manager': 2, 'Collaborator': 2, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+        },
+        # === USERS ===
+        'users': {
+            'create': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'get': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'update': {'Admin': 4, 'Manager': 2, 'Collaborator': 2, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+        },
+        # === COUNTRIES (solo lectura) ===
+        'countries': {
+            'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'get': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+        },
+        # === STATES (solo lectura) ===
+        'states': {
+            'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'get': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+        },
+    }
+
+    # Niveles de permiso por defecto GLOBAL para cada rol
+    # Solo se usa si la entidad:acción NO está en PERMISSION_MATRIX
     default_permission_levels = {
         "Admin": 4,      # Acceso total a todo
         "Manager": 3,    # Create en la mayoría de entidades
@@ -240,65 +338,6 @@ def initialize_permissions(db: Session):
         "Reader": 1,     # Solo lectura
         "Guest": 0,      # Sin acceso por defecto
         "Checker": 1     # Lectura básica para validación QR
-    }
-
-    # CONFIGURACIÓN GRANULAR POR ENTIDAD
-    # Para entidades específicas donde todos necesitan acceso de creación
-    entity_specific_levels = {
-        "products": {
-            # Products es CACHE - colaboradores operativos pueden agregar
-            "Admin": 4,
-            "Manager": 4,
-            "Collaborator": 3,  # Supervisor: puede crear productos (cache)
-            "Reader": 3,        # Colaborador: puede crear productos (cache)
-            "Guest": 0,
-            "Checker": 1        # Vigilancia: solo lectura (NO crea productos)
-        },
-        "vouchers": {
-            # Todos los colaboradores crean vales, supervisores aprueban
-            "Admin": 4,
-            "Manager": 4,
-            "Collaborator": 3,  # Supervisor: crear + aprobar vales
-            "Reader": 3,        # Colaborador: solo crear vales (sin aprobar)
-            "Guest": 0,
-            "Checker": 1        # Vigilancia: solo lectura para validar QR
-        },
-        "entry_logs": {
-            # Registro de entradas - solo supervisores y superiores
-            "Admin": 4,
-            "Manager": 3,
-            "Collaborator": 3,  # Supervisor: puede registrar entradas
-            "Reader": 1,        # Colaborador: solo lectura
-            "Guest": 0,
-            "Checker": 1
-        },
-        "out_logs": {
-            # Registro de salidas QR - vigilancia y superiores
-            "Admin": 4,
-            "Manager": 3,
-            "Collaborator": 3,  # Supervisor: puede registrar salidas
-            "Reader": 1,        # Colaborador: solo lectura
-            "Guest": 0,
-            "Checker": 3        # Vigilancia: puede crear out_logs (escanear QR)
-        },
-        "branches": {
-            # Ubicaciones - solo administración
-            "Admin": 4,
-            "Manager": 4,
-            "Collaborator": 1,  # Supervisor: solo lectura
-            "Reader": 1,        # Colaborador: solo lectura
-            "Guest": 0,
-            "Checker": 1
-        },
-        "voucher-details": {
-            # Líneas de detalle de vales - similar a vouchers
-            "Admin": 4,
-            "Manager": 4,
-            "Collaborator": 3,  # Supervisor: puede crear/editar líneas
-            "Reader": 3,        # Colaborador: puede crear líneas
-            "Guest": 0,
-            "Checker": 1        # Vigilancia: solo lectura
-        }
     }
 
     # Obtener todos los templates
@@ -325,16 +364,21 @@ def initialize_permissions(db: Session):
             newly_assigned = 0
             for perm in all_perms:
                 if perm.id not in existing_perm_ids:
-                    # Determinar nivel según entidad específica o global
+                    # Determinar nivel según PERMISSION_MATRIX (entidad + acción)
                     entity = perm.entity
-                    if entity in entity_specific_levels:
-                        # Usar nivel específico de la entidad
-                        permission_level = entity_specific_levels[entity].get(
-                            template.role_name,
-                            default_permission_levels.get(template.role_name, 0)
-                        )
-                    else:
-                        # Usar nivel global por defecto
+                    action = perm.action
+
+                    # Intentar obtener nivel de la matriz
+                    permission_level = None
+                    if entity in PERMISSION_MATRIX:
+                        if action in PERMISSION_MATRIX[entity]:
+                            permission_level = PERMISSION_MATRIX[entity][action].get(
+                                template.role_name,
+                                None
+                            )
+
+                    # Si no está en la matriz, usar nivel global por defecto
+                    if permission_level is None:
                         permission_level = default_permission_levels.get(template.role_name, 0)
 
                     new_item = PermissionTemplateItem(
