@@ -114,30 +114,44 @@ class VoucherRepository(BaseRepository[Voucher]):
 
     # ==================== GENERACIÓN DE FOLIOS ====================
 
-    def get_last_sequence_for_folio(
+    def get_last_sequence_for_day(
         self,
         company_id: int,
         voucher_type: VoucherTypeEnum,
-        year: int
+        date_str: str
     ) -> int:
         """
-        Obtiene la última secuencia usada para generar folios
+        Obtiene la última secuencia del día para generar folios
 
         Args:
             company_id: ID de la empresa
             voucher_type: Tipo de voucher
-            year: Año
+            date_str: Fecha en formato YYYYMMDD
 
         Returns:
-            Última secuencia (0 si no existe ninguna)
+            Última secuencia del día (0 si no existe ninguna)
         """
-        count = self.db.query(func.count(Voucher.id)).filter(
+        # Buscar el último voucher del día por patrón de folio
+        # Formato: {company_code}-{type}-{YYYYMMDD}-{seq:03d}
+        type_code = "ENT" if voucher_type == VoucherTypeEnum.ENTRY else "SAL"
+        pattern = f'%-{type_code}-{date_str}-%'
+
+        last_voucher = self.db.query(Voucher).filter(
             Voucher.company_id == company_id,
             Voucher.voucher_type == voucher_type,
-            extract('year', Voucher.created_at) == year
-        ).scalar()
+            Voucher.folio.like(pattern)
+        ).order_by(Voucher.folio.desc()).first()
 
-        return count or 0
+        if not last_voucher:
+            return 0
+
+        # Extraer la secuencia del folio (últimos 3 dígitos)
+        try:
+            # Formato: XXX-SAL-20250113-001
+            seq_str = last_voucher.folio.split('-')[-1]
+            return int(seq_str)
+        except (ValueError, IndexError):
+            return 0
 
     # ==================== VALES VENCIDOS ====================
 

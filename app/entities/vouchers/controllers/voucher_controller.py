@@ -250,18 +250,30 @@ class VoucherController:
 
     def list_vouchers(
         self,
+        page: int = 1,
+        per_page: int = 20,
         skip: int = 0,
         limit: int = 100,
         active_only: bool = True,
+        status: Optional[VoucherStatusEnum] = None,
+        voucher_type: Optional[VoucherTypeEnum] = None,
+        order_by: Optional[str] = None,
+        order_direction: Optional[str] = "desc",
         current_user = None
     ) -> VoucherListResponse:
         """
-        Lista todos los vouchers paginados (filtrados por role si aplica).
+        Lista todos los vouchers paginados con filtros y ordenamiento.
 
         Args:
+            page: Número de página (alternativo a skip)
+            per_page: Registros por página (alternativo a limit)
             skip: Registros a saltar
             limit: Máximo de registros
             active_only: Solo activos
+            status: Filtrar por estado
+            voucher_type: Filtrar por tipo
+            order_by: Campo para ordenar
+            order_direction: Dirección de ordenamiento
             current_user: Usuario actual (para filtrar si role=4)
 
         Returns:
@@ -271,24 +283,41 @@ class VoucherController:
             HTTPException 500: Si error interno
         """
         try:
+            # Si se usa page/per_page, calcular skip/limit
+            if page > 1 or per_page != 20:
+                skip = (page - 1) * per_page
+                limit = per_page
+
             vouchers = self.service.list_vouchers(
-                skip,
-                limit,
-                active_only,
+                skip=skip,
+                limit=limit,
+                active_only=active_only,
+                status=status,
+                voucher_type=voucher_type,
+                order_by=order_by,
+                order_direction=order_direction,
                 current_user_id=current_user.id if current_user else None,
                 current_user_role=current_user.role if current_user else None
             )
-            total = len(vouchers)
+
+            # Obtener total de registros
+            total = self.service.count_vouchers(
+                active_only=active_only,
+                status=status,
+                voucher_type=voucher_type,
+                current_user_id=current_user.id if current_user else None,
+                current_user_role=current_user.role if current_user else None
+            )
 
             # Calcular total de páginas
             import math
-            total_pages = math.ceil(total / limit) if limit > 0 else 1
+            total_pages = math.ceil(total / per_page) if per_page > 0 else 1
 
             return VoucherListResponse(
                 vouchers=[VoucherResponse.model_validate(v) for v in vouchers],
                 total=total,
-                page=1,
-                per_page=limit,
+                page=page,
+                per_page=per_page,
                 total_pages=total_pages
             )
 

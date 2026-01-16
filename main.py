@@ -222,7 +222,7 @@ def create_user(user_data: UserCreate, db: Session = Depends(get_db), current_us
 def get_users(db: Session = Depends(get_db), current_user = Depends(require_manager_or_admin)):
     # Filtrar usuarios no eliminados
     users = db.query(User).filter(User.is_deleted == False).all()
-    return [{"id": u.id, "email": u.email, "name": u.name, "is_active": u.is_active} for u in users]
+    return [{"id": u.id, "email": u.email, "name": u.name, "role": u.role, "is_active": u.is_active} for u in users]
 
 @app.get("/users/me", tags=["users"], summary="Perfil del usuario actual")
 def get_current_user(db: Session = Depends(get_db), current_user_id: int = Depends(get_current_user_id)):
@@ -263,7 +263,7 @@ def get_user(user_id: int, db: Session = Depends(get_db), current_user = Depends
     ).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return {"id": user.id, "email": user.email, "name": user.name, "is_active": user.is_active, "created_at": user.created_at}
+    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "is_active": user.is_active, "created_at": user.created_at}
 
 @app.put("/users/{user_id}", tags=["users"], summary="Actualizar usuario")
 def update_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_db), current_user = Depends(require_manager_or_admin)):
@@ -296,7 +296,7 @@ def update_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_d
 
     db.commit()
     db.refresh(user)
-    return {"id": user.id, "email": user.email, "name": user.name, "is_active": user.is_active}
+    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "is_active": user.is_active}
 
 @app.delete("/users/{user_id}", tags=["users"], summary="Eliminar usuario (soft delete)")
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user = Depends(require_admin)):

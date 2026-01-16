@@ -51,20 +51,18 @@ class VoucherService:
     def _generate_folio(
         self,
         company_id: int,
-        voucher_type: VoucherTypeEnum,
-        year: int
+        voucher_type: VoucherTypeEnum
     ) -> str:
         """
-        Genera folio único: {company_code}-{type}-{year}-{seq}
+        Genera folio único: {company_code}-{type}-{YYYYMMDD}-{seq}
 
         Ejemplos:
-            GPA-SAL-2025-0001  (EXIT)
-            GPA-ENT-2025-0001  (ENTRY)
+            RFC-SAL-20250113-001  (EXIT)
+            RFC-ENT-20250113-002  (ENTRY)
 
         Args:
             company_id: ID de la empresa
             voucher_type: ENTRY o EXIT
-            year: Año actual
 
         Returns:
             Folio único generado
@@ -80,16 +78,20 @@ class VoucherService:
         # Tipo de voucher
         type_code = "ENT" if voucher_type == VoucherTypeEnum.ENTRY else "SAL"
 
-        # Obtener última secuencia
-        last_seq = self.repository.get_last_sequence_for_folio(
+        # Obtener fecha actual en formato YYYYMMDD
+        now = datetime.now()
+        date_str = now.strftime('%Y%m%d')
+
+        # Obtener última secuencia del día
+        last_seq = self.repository.get_last_sequence_for_day(
             company_id=company_id,
             voucher_type=voucher_type,
-            year=year
+            date_str=date_str
         )
         next_seq = last_seq + 1
 
-        # Formatear folio
-        folio = f"{company_code}-{type_code}-{year}-{next_seq:04d}"
+        # Formatear folio: RFC-SAL-20250113-001
+        folio = f"{company_code}-{type_code}-{date_str}-{next_seq:03d}"
 
         return folio
 
@@ -621,11 +623,9 @@ class VoucherService:
                 )
 
         # Generar folio único
-        year = datetime.now().year
         folio = self._generate_folio(
             company_id=voucher_data.company_id,
-            voucher_type=voucher_data.voucher_type,
-            year=year
+            voucher_type=voucher_data.voucher_type
         )
 
         # Crear voucher
@@ -752,11 +752,15 @@ class VoucherService:
         skip: int = 0,
         limit: int = 100,
         active_only: bool = True,
+        status: Optional[VoucherStatusEnum] = None,
+        voucher_type: Optional[VoucherTypeEnum] = None,
+        order_by: Optional[str] = None,
+        order_direction: Optional[str] = "desc",
         current_user_id: Optional[int] = None,
         current_user_role: Optional[int] = None
     ) -> List[Voucher]:
         """
-        Lista todos los vouchers con filtro por usuario para role 4 (Reader).
+        Lista todos los vouchers con filtros y ordenamiento.
 
         - Admin/Manager/Supervisor (roles 1,2,3): ven todos los vales
         - Reader (role 4): solo ve sus propios vales (created_by)
@@ -765,22 +769,92 @@ class VoucherService:
             skip: Registros a saltar
             limit: Máximo de registros
             active_only: Solo activos
+            status: Filtrar por estado
+            voucher_type: Filtrar por tipo
+            order_by: Campo para ordenar
+            order_direction: Dirección de ordenamiento
             current_user_id: ID del usuario actual
             current_user_role: Rol del usuario actual
 
         Returns:
             Lista de vouchers
         """
+        # Construir query base
+        query = self.db.query(Voucher).filter(Voucher.is_deleted == False)
+
+        # Aplicar filtros comunes
+        if active_only:
+            query = query.filter(Voucher.is_active == True)
+
+        if status:
+            query = query.filter(Voucher.status == status)
+
+        if voucher_type:
+            query = query.filter(Voucher.voucher_type == voucher_type)
+
         # Filtro para role 4 (Reader): solo sus propios vales
         if current_user_role == 4 and current_user_id:
-            query = self.db.query(Voucher).filter(Voucher.is_deleted == False)
-            if active_only:
-                query = query.filter(Voucher.is_active == True)
             query = query.filter(Voucher.created_by == current_user_id)
-            return query.offset(skip).limit(limit).all()
 
-        # Admin/Manager/Supervisor: todos los vales
-        return self.repository.get_all(skip=skip, limit=limit, active_only=active_only)
+        # Aplicar ordenamiento
+        if order_by:
+            if order_by == 'folio':
+                order_field = Voucher.folio
+            elif order_by == 'created_at':
+                order_field = Voucher.created_at
+            else:
+                order_field = Voucher.created_at  # Default
+
+            if order_direction == 'asc':
+                query = query.order_by(order_field.asc())
+            else:
+                query = query.order_by(order_field.desc())
+        else:
+            # Ordenamiento por defecto: fecha de creación descendente
+            query = query.order_by(Voucher.created_at.desc())
+
+        # Aplicar paginación
+        return query.offset(skip).limit(limit).all()
+
+    def count_vouchers(
+        self,
+        active_only: bool = True,
+        status: Optional[VoucherStatusEnum] = None,
+        voucher_type: Optional[VoucherTypeEnum] = None,
+        current_user_id: Optional[int] = None,
+        current_user_role: Optional[int] = None
+    ) -> int:
+        """
+        Cuenta total de vouchers con filtros.
+
+        Args:
+            active_only: Solo activos
+            status: Filtrar por estado
+            voucher_type: Filtrar por tipo
+            current_user_id: ID del usuario actual
+            current_user_role: Rol del usuario actual
+
+        Returns:
+            Total de registros
+        """
+        # Construir query base
+        query = self.db.query(Voucher).filter(Voucher.is_deleted == False)
+
+        # Aplicar filtros comunes
+        if active_only:
+            query = query.filter(Voucher.is_active == True)
+
+        if status:
+            query = query.filter(Voucher.status == status)
+
+        if voucher_type:
+            query = query.filter(Voucher.voucher_type == voucher_type)
+
+        # Filtro para role 4 (Reader): solo sus propios vales
+        if current_user_role == 4 and current_user_id:
+            query = query.filter(Voucher.created_by == current_user_id)
+
+        return query.count()
 
     # ==================== TRANSICIONES DE ESTADO ====================
 

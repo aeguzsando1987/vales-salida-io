@@ -179,22 +179,34 @@ def update_voucher(
     "/",
     response_model=VoucherListResponse,
     summary="Listar vouchers",
-    description="Lista todos los vouchers con paginación"
+    description="Lista todos los vouchers con paginación y filtros"
 )
 def list_vouchers(
-    skip: int = Query(0, ge=0, description="Registros a saltar"),
-    limit: int = Query(100, ge=1, le=200, description="Máximo de registros"),
+    page: int = Query(1, ge=1, description="Número de página"),
+    per_page: int = Query(20, ge=1, le=200, description="Registros por página"),
+    skip: int = Query(0, ge=0, description="Registros a saltar (alternativo a page)"),
+    limit: int = Query(100, ge=1, le=200, description="Máximo de registros (alternativo a per_page)"),
     active_only: bool = Query(True, description="Solo registros activos"),
+    status: Optional[VoucherStatusEnum] = Query(None, description="Filtrar por estado"),
+    voucher_type: Optional[VoucherTypeEnum] = Query(None, description="Filtrar por tipo"),
+    order_by: Optional[str] = Query(None, description="Campo para ordenar (folio, created_at)"),
+    order_direction: Optional[str] = Query("desc", description="Dirección de ordenamiento (asc, desc)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("vouchers", "list", min_level=1))
 ):
     """
-    Lista todos los vouchers con paginación.
+    Lista todos los vouchers con paginación y filtros.
 
     Parámetros:
+    - page: Número de página (alternativo a skip)
+    - per_page: Registros por página (alternativo a limit)
     - skip: Registros a saltar
     - limit: Máximo de registros
     - active_only: Si es True, solo registros activos
+    - status: Filtrar por estado (PENDING, APPROVED, etc.)
+    - voucher_type: Filtrar por tipo (ENTRY, EXIT)
+    - order_by: Campo para ordenar (folio, created_at)
+    - order_direction: Dirección de ordenamiento (asc, desc)
 
     Permisos requeridos: vouchers:list (nivel 1+)
 
@@ -203,7 +215,18 @@ def list_vouchers(
     - Otros roles: ven todos los vales
     """
     controller = VoucherController(db)
-    return controller.list_vouchers(skip, limit, active_only, current_user=current_user)
+    return controller.list_vouchers(
+        page=page,
+        per_page=per_page,
+        skip=skip,
+        limit=limit,
+        active_only=active_only,
+        status=status,
+        voucher_type=voucher_type,
+        order_by=order_by,
+        order_direction=order_direction,
+        current_user=current_user
+    )
 
 
 # ==================== STATE TRANSITION ENDPOINTS ====================
