@@ -10,8 +10,10 @@ Fecha: 2025-11-12
 
 from typing import Optional, Union
 from datetime import date
-from fastapi import APIRouter, Depends, Query, Path, Body
+from fastapi import APIRouter, Depends, Query, Path, Body, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+import os
 
 from database import get_db, User
 from app.shared.dependencies import require_permission
@@ -881,3 +883,82 @@ def get_voucher_pdf_metadata(
     """
     controller = VoucherController(db)
     return controller.get_pdf_metadata(voucher_id)
+
+
+@router.get(
+    "/{voucher_id}/download-pdf",
+    response_class=FileResponse,
+    summary="Descargar PDF de voucher",
+    description="Descarga el PDF generado de un voucher. Si no existe, retorna 404."
+)
+def download_voucher_pdf(
+    voucher_id: int = Path(..., gt=0, description="ID del voucher"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "generate_pdf", min_level=1))
+):
+    """
+    Descarga el archivo PDF de un voucher.
+
+    **Flujo:**
+    1. Verifica que el voucher existe
+    2. Obtiene la metadata del PDF (ruta, tamaño, etc.)
+    3. Verifica que el archivo físico existe
+    4. Retorna el archivo PDF para descarga
+
+    **Respuesta:**
+    - Content-Type: application/pdf
+    - Content-Disposition: attachment con nombre de archivo basado en folio
+
+    **Errores:**
+    - 404: Voucher no encontrado o PDF no generado
+    - 404: Archivo PDF expiró o fue eliminado (cleanup automático)
+    - 403: Permisos insuficientes
+
+    **Nota:**
+    Si el PDF no existe o expiró, el cliente debe llamar primero a
+    POST /vouchers/{id}/generate-pdf para crear uno nuevo.
+
+    **Permisos:** vouchers:generate_pdf (nivel 1 - lectura)
+    """
+    controller = VoucherController(db)
+
+    # Obtener voucher para validar existencia y obtener folio
+    try:
+        voucher = controller.get(voucher_id)
+    except Exception:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Voucher con ID {voucher_id} no encontrado"
+        )
+
+    # Obtener metadata del PDF
+    try:
+        metadata = controller.get_pdf_metadata(voucher_id)
+    except Exception:
+        raise HTTPException(
+            status_code=404,
+            detail=f"PDF no encontrado para el voucher {voucher.folio}. Genere un nuevo PDF primero."
+        )
+
+    # Verificar que el archivo físico existe
+    file_path = metadata.get('file_path')
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Archivo PDF no encontrado o expiró. Genere un nuevo PDF para el voucher {voucher.folio}."
+        )
+
+    # Generar nombre de archivo basado en folio
+    filename = f"vale_{voucher.folio}.pdf"
+
+    # Retornar archivo
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        media_type="application/pdf",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
