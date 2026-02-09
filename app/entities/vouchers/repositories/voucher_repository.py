@@ -153,6 +153,50 @@ class VoucherRepository(BaseRepository[Voucher]):
         except (ValueError, IndexError):
             return 0
 
+    def get_last_sequence_for_timestamp(
+        self,
+        company_id: int,
+        voucher_type: VoucherTypeEnum,
+        timestamp: str
+    ) -> int:
+        """
+        Obtiene la última secuencia para un timestamp específico.
+
+        Formato de folio: {company_id}-{type}-{YYYYMMDDHHmmss}-{seq:02d}
+        Ejemplo: 2-SAL-20260119171530-01
+
+        Args:
+            company_id: ID de la empresa
+            voucher_type: Tipo de voucher
+            timestamp: Timestamp en formato YYYYMMDDHHmmss
+
+        Returns:
+            Última secuencia para ese timestamp (0 si no existe ninguna)
+        """
+        # Tipo de voucher
+        type_code = "ENT" if voucher_type == VoucherTypeEnum.ENTRY else "SAL"
+
+        # Buscar vouchers con el mismo timestamp exacto
+        # Patrón: {company_id}-{type}-{timestamp}-%
+        pattern = f'{company_id}-{type_code}-{timestamp}-%'
+
+        last_voucher = self.db.query(Voucher).filter(
+            Voucher.company_id == company_id,
+            Voucher.voucher_type == voucher_type,
+            Voucher.folio.like(pattern)
+        ).order_by(Voucher.folio.desc()).first()
+
+        if not last_voucher:
+            return 0
+
+        # Extraer la secuencia del folio (últimos 2 dígitos)
+        try:
+            # Formato: 2-SAL-20260119171530-01
+            seq_str = last_voucher.folio.split('-')[-1]
+            return int(seq_str)
+        except (ValueError, IndexError):
+            return 0
+
     # ==================== VALES VENCIDOS ====================
 
     def find_overdue_vouchers(self) -> List[Voucher]:

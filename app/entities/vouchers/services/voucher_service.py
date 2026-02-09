@@ -54,11 +54,15 @@ class VoucherService:
         voucher_type: VoucherTypeEnum
     ) -> str:
         """
-        Genera folio único: {company_code}-{type}-{YYYYMMDD}-{seq}
+        Genera folio único: {company_id}-{type}-{YYYYMMDDHHmmss}-{seq:02d}
+
+        Formato con timestamp completo para garantizar unicidad absoluta.
+        Incluye secuencia corta (01-99) para manejar concurrencia en el mismo segundo.
 
         Ejemplos:
-            RFC-SAL-20250113-001  (EXIT)
-            RFC-ENT-20250113-002  (ENTRY)
+            2-SAL-20260119171530-01  (EXIT, empresa 2)
+            3-ENT-20260119171532-01  (ENTRY, empresa 3)
+            2-SAL-20260119171530-02  (EXIT, empresa 2, segundo vale en mismo segundo)
 
         Args:
             company_id: ID de la empresa
@@ -67,31 +71,23 @@ class VoucherService:
         Returns:
             Folio único generado
         """
-        # Obtener código de empresa (primeros 3 chars del TIN)
-        company = self.db.query(Company).filter(Company.id == company_id).first()
-        if not company:
-            raise EntityNotFoundError("Company", company_id)
-
-        # Usar primeros 3 caracteres del TIN como código
-        company_code = company.tin[:3].upper()
-
         # Tipo de voucher
         type_code = "ENT" if voucher_type == VoucherTypeEnum.ENTRY else "SAL"
 
-        # Obtener fecha actual en formato YYYYMMDD
+        # Obtener timestamp actual completo: YYYYMMDDHHmmss
         now = datetime.now()
-        date_str = now.strftime('%Y%m%d')
+        timestamp = now.strftime('%Y%m%d%H%M%S')
 
-        # Obtener última secuencia del día
-        last_seq = self.repository.get_last_sequence_for_day(
+        # Obtener última secuencia para este timestamp exacto
+        last_seq = self.repository.get_last_sequence_for_timestamp(
             company_id=company_id,
             voucher_type=voucher_type,
-            date_str=date_str
+            timestamp=timestamp
         )
         next_seq = last_seq + 1
 
-        # Formatear folio: RFC-SAL-20250113-001
-        folio = f"{company_code}-{type_code}-{date_str}-{next_seq:03d}"
+        # Formatear folio: 2-SAL-20260119171530-01
+        folio = f"{company_id}-{type_code}-{timestamp}-{next_seq:02d}"
 
         return folio
 

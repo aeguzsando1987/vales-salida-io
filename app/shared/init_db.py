@@ -242,29 +242,47 @@ def initialize_permissions(db: Session):
     #   Checker (role=6) = VIGILANCIA (Enrique)
     PERMISSION_MATRIX = {
         # === VOUCHERS ===
+        # Permisos completos para todas las acciones de vouchers
         'vouchers': {
+            # CRUD básico
             'create': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 3, 'Guest': 0, 'Checker': 0},
             'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
             'get': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
             'update': {'Admin': 4, 'Manager': 2, 'Collaborator': 2, 'Reader': 2, 'Guest': 0, 'Checker': 0},
             'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
-            # Acciones de workflow
+            # Workflow - acciones principales
             'approve': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
             'cancel': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
-            'validate_exit': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 3},  # ← Checker DEBE tener 3
-            'confirm_entry': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 3},  # ← Checker DEBE tener 3
-            'view_logs': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 0, 'Guest': 0, 'Checker': 0},
-            # Búsqueda
+            'validate_exit': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 3},
+            'confirm_entry': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 3},
+            'close': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'start_transit': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'check_overdue': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            # Búsqueda y consultas
             'search': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
             'advanced': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
-            # Generación de documentos
-            'generate_pdf': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
-            'generate_qr': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
-            'view_statistics': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
-            'view_tasks': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'folio': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'company': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'status': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            'overview': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'enums': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+            # Logs y auditoría
+            'logs': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'view_logs': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            # PDF y documentos
+            'generate_pdf': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'download_pdf': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'generation_info': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'pdf_metadata': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
             'view_generation_info': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
             'view_pdf_metadata': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'view_tasks': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            # QR
+            'generate_qr': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 1, 'Guest': 0, 'Checker': 0},
+            'validate_qr': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 0, 'Guest': 0, 'Checker': 1},
             'scan_qr': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 3},
+            # Estadísticas y mantenimiento
+            'view_statistics': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
             'maintenance': {'Admin': 4, 'Manager': 4, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
         },
         # === VOUCHER-DETAILS ===
@@ -274,8 +292,8 @@ def initialize_permissions(db: Session):
             'list': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
             'update': {'Admin': 4, 'Manager': 2, 'Collaborator': 2, 'Reader': 2, 'Guest': 0, 'Checker': 0},
             'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 2, 'Reader': 2, 'Guest': 0, 'Checker': 0},
+            'voucher': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
             'products': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
-            'search_products': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
         },
         # === COMPANIES ===
         'companies': {
@@ -352,53 +370,69 @@ def initialize_permissions(db: Session):
         all_perms = db.query(Permission).all()
 
         total_newly_assigned = 0
+        total_updated = 0
 
         for template in all_templates:
-            # Obtener IDs de permisos ya asignados a este template
+            # Obtener items existentes para este template
             existing_items = db.query(PermissionTemplateItem).filter(
                 PermissionTemplateItem.template_id == template.id
             ).all()
-            existing_perm_ids = {item.permission_id for item in existing_items}
+            existing_items_dict = {item.permission_id: item for item in existing_items}
 
-            # Asignar permisos faltantes
             newly_assigned = 0
+            updated = 0
+
             for perm in all_perms:
-                if perm.id not in existing_perm_ids:
-                    # Determinar nivel según PERMISSION_MATRIX (entidad + acción)
-                    entity = perm.entity
-                    action = perm.action
+                # Determinar nivel correcto según PERMISSION_MATRIX
+                entity = perm.entity
+                action = perm.action
 
-                    # Intentar obtener nivel de la matriz
-                    permission_level = None
-                    if entity in PERMISSION_MATRIX:
-                        if action in PERMISSION_MATRIX[entity]:
-                            permission_level = PERMISSION_MATRIX[entity][action].get(
-                                template.role_name,
-                                None
-                            )
+                # Intentar obtener nivel de la matriz
+                correct_level = None
+                if entity in PERMISSION_MATRIX:
+                    if action in PERMISSION_MATRIX[entity]:
+                        correct_level = PERMISSION_MATRIX[entity][action].get(
+                            template.role_name,
+                            None
+                        )
 
-                    # Si no está en la matriz, usar nivel global por defecto
-                    if permission_level is None:
-                        permission_level = default_permission_levels.get(template.role_name, 0)
+                # Si no está en la matriz, usar nivel global por defecto
+                if correct_level is None:
+                    correct_level = default_permission_levels.get(template.role_name, 0)
 
+                if perm.id not in existing_items_dict:
+                    # CREAR: Permiso no existe para este template
                     new_item = PermissionTemplateItem(
                         template_id=template.id,
                         permission_id=perm.id,
-                        permission_level=permission_level,
+                        permission_level=correct_level,
                         scope="all"
                     )
                     db.add(new_item)
                     newly_assigned += 1
                     total_newly_assigned += 1
+                else:
+                    # ACTUALIZAR: Permiso existe pero puede tener nivel incorrecto
+                    existing_item = existing_items_dict[perm.id]
+                    if existing_item.permission_level != correct_level:
+                        old_level = existing_item.permission_level
+                        existing_item.permission_level = correct_level
+                        updated += 1
+                        total_updated += 1
+                        # Solo mostrar cambios significativos (de 0 a algo o viceversa)
+                        if old_level == 0 or correct_level == 0:
+                            print(f"  [~] {template.role_name}: {entity}:{action} {old_level} -> {correct_level}")
 
             if newly_assigned > 0:
-                print(f"  [+] {template.role_name}: {newly_assigned} permisos nuevos asignados")
+                print(f"  [+] {template.role_name}: {newly_assigned} permisos nuevos")
+            if updated > 0:
+                print(f"  [~] {template.role_name}: {updated} permisos actualizados")
 
-        if total_newly_assigned > 0:
+        if total_newly_assigned > 0 or total_updated > 0:
             db.commit()
-            print(f"\n  [OK] Total: {total_newly_assigned} asignaciones nuevas")
+            print(f"\n  [OK] Nuevos: {total_newly_assigned}, Actualizados: {total_updated}")
         else:
-            print(f"  [OK] Todos los permisos ya estaban asignados a todos los roles")
+            print(f"  [OK] Todos los permisos ya estaban correctamente configurados")
 
         print(f"  [OK] Total permisos en sistema: {len(all_perms)}")
 

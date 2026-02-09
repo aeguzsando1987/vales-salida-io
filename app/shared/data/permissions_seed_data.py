@@ -395,18 +395,32 @@ TEMPLATE_PERMISSION_MATRIX = {
         {"entity": "states", "action": "read", "level": 1, "scope": "all"},
     ],
 
-    # Checker: Security guard role - QR scanning and limited voucher read access
+    # Checker: Security guard role - QR scanning and voucher exit validation
     "Checker": [
-        # Vouchers - solo lectura para validación
+        # Vouchers - lectura y búsqueda para validación de salidas
         {"entity": "vouchers", "action": "list", "level": 1, "scope": "all"},
         {"entity": "vouchers", "action": "get", "level": 1, "scope": "all"},
+        {"entity": "vouchers", "action": "search", "level": 1, "scope": "all"},  # Buscar vales por status
+        {"entity": "vouchers", "action": "advanced", "level": 1, "scope": "all"},  # Búsqueda avanzada
+        {"entity": "vouchers", "action": "folio", "level": 1, "scope": "all"},  # Buscar por folio
+        {"entity": "vouchers", "action": "validate_exit", "level": 3, "scope": "all"},  # Validar salida
+        {"entity": "vouchers", "action": "validate_qr", "level": 1, "scope": "all"},  # Validar QR
+        {"entity": "vouchers", "action": "scan_qr", "level": 3, "scope": "all"},  # Escanear QR
+        # Voucher details - lectura para verificar artículos
+        {"entity": "voucher-details", "action": "get", "level": 1, "scope": "all"},
+        {"entity": "voucher-details", "action": "voucher", "level": 1, "scope": "all"},
         # Out logs - crear escaneos y ver propios
         {"entity": "out_logs", "action": "create", "level": 3, "scope": "all"},
         {"entity": "out_logs", "action": "read", "level": 1, "scope": "own"},
         # Branches - lectura para validar ubicaciones
-        {"entity": "branches", "action": "read", "level": 1, "scope": "all"},
+        {"entity": "branches", "action": "list", "level": 1, "scope": "all"},
+        {"entity": "branches", "action": "get", "level": 1, "scope": "all"},
         # Products - lectura para validar artículos
-        {"entity": "products", "action": "read", "level": 1, "scope": "all"},
+        {"entity": "products", "action": "list", "level": 1, "scope": "all"},
+        {"entity": "products", "action": "get", "level": 1, "scope": "all"},
+        # Companies - lectura para ver nombre de empresa en vale
+        {"entity": "companies", "action": "list", "level": 1, "scope": "all"},
+        {"entity": "companies", "action": "get", "level": 1, "scope": "all"},
         # Catálogos básicos
         {"entity": "countries", "action": "read", "level": 1, "scope": "all"},
         {"entity": "states", "action": "read", "level": 1, "scope": "all"},

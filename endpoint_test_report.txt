@@ -1,0 +1,374 @@
+================================================================================
+                        REPORTE DE TESTING DE ENDPOINTS                         
+================================================================================
+Fecha: 2025-12-22 16:48:10
+Total usuarios probados: 5
+Total endpoints probados: 138
+
+================================================================================
+RESUMEN POR USUARIO
+================================================================================
+
+Admin (alonso.guzman@gpamex.com) - Role: 1
+--------------------------------------------------------------------------------
+  Total endpoints: 138
+  [OK] SUCCESS: 63 (45.7%)
+  [WARN] NOT_FOUND: 13 (9.4%) - Esperado con IDs dummy
+  [WARN] VALIDATION_ERROR: 44 (31.9%) - Esperado sin body
+  [ERROR] FORBIDDEN: 1 (0.7%) - SIN PERMISOS
+  [ERROR] UNAUTHORIZED: 0 (0.0%)
+  [ERROR] OTROS: 17 (12.3%)
+
+  Endpoints SIN PERMISOS (1):
+    - GET /voucher-details/search/products (entidad: voucher-details)
+
+Manager (manager@test.com) - Role: 2
+--------------------------------------------------------------------------------
+  Total endpoints: 138
+  [OK] SUCCESS: 60 (43.5%)
+  [WARN] NOT_FOUND: 12 (8.7%) - Esperado con IDs dummy
+  [WARN] VALIDATION_ERROR: 33 (23.9%) - Esperado sin body
+  [ERROR] FORBIDDEN: 16 (11.6%) - SIN PERMISOS
+  [ERROR] UNAUTHORIZED: 0 (0.0%)
+  [ERROR] OTROS: 17 (12.3%)
+
+  Endpoints SIN PERMISOS (16):
+    - DELETE /individuals/{individual_id} (entidad: individuals)
+    - DELETE /companies/{company_id} (entidad: companies)
+    - GET /voucher-details/search/products (entidad: voucher-details)
+    - POST /admin/user-permissions/grant/{user_id} (entidad: admin)
+    - DELETE /admin/user-permissions/{user_permission_id} (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id} (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id}/effective (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id}/details (entidad: admin)
+    - PATCH /admin/user-permissions/{user_permission_id}/extend (entidad: admin)
+    - POST /admin/user-permissions/cleanup-expired (entidad: admin)
+    - GET /admin/user-permissions/levels (entidad: admin)
+    - DELETE /users/{user_id} (entidad: users)
+    - DELETE /users/{user_id}/hard (entidad: users)
+    - PATCH /users/{user_id}/activate (entidad: users)
+    - PATCH /users/{user_id}/deactivate (entidad: users)
+    - DELETE /examples/{example_id} (entidad: examples)
+
+Supervisor (supervisor@test.com) - Role: 3
+--------------------------------------------------------------------------------
+  Total endpoints: 138
+  [OK] SUCCESS: 53 (38.4%)
+  [WARN] NOT_FOUND: 11 (8.0%) - Esperado con IDs dummy
+  [WARN] VALIDATION_ERROR: 27 (19.6%) - Esperado sin body
+  [ERROR] FORBIDDEN: 30 (21.7%) - SIN PERMISOS
+  [ERROR] UNAUTHORIZED: 0 (0.0%)
+  [ERROR] OTROS: 17 (12.3%)
+
+  Endpoints SIN PERMISOS (30):
+    - DELETE /individuals/{individual_id} (entidad: individuals)
+    - POST /individuals/with-user (entidad: individuals)
+    - PATCH /individuals/{individual_id}/verify (entidad: individuals)
+    - GET /individuals/statistics/skills (entidad: individuals)
+    - DELETE /companies/{company_id} (entidad: companies)
+    - POST /branches/ (entidad: branches)
+    - PUT /branches/{branch_id} (entidad: branches)
+    - DELETE /branches/{branch_id} (entidad: branches)
+    - PATCH /branches/{branch_id}/status (entidad: branches)
+    - DELETE /products/{product_id} (entidad: products)
+    - POST /vouchers/maintenance/check-overdue (entidad: vouchers)
+    - DELETE /voucher-details/{detail_id} (entidad: voucher-details)
+    - GET /voucher-details/search/products (entidad: voucher-details)
+    - POST /admin/user-permissions/grant/{user_id} (entidad: admin)
+    - DELETE /admin/user-permissions/{user_permission_id} (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id} (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id}/effective (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id}/details (entidad: admin)
+    - PATCH /admin/user-permissions/{user_permission_id}/extend (entidad: admin)
+    - POST /admin/user-permissions/cleanup-expired (entidad: admin)
+    - GET /admin/user-permissions/levels (entidad: admin)
+    - GET /users (entidad: users)
+    - GET /users/{user_id} (entidad: users)
+    - PUT /users/{user_id} (entidad: users)
+    - DELETE /users/{user_id} (entidad: users)
+    - DELETE /users/{user_id}/hard (entidad: users)
+    - PATCH /users/{user_id}/activate (entidad: users)
+    - PATCH /users/{user_id}/deactivate (entidad: users)
+    - DELETE /examples/{example_id} (entidad: examples)
+    - POST /examples/with-user (entidad: examples)
+
+Collaborator (collaborator@test.com) - Role: 4
+--------------------------------------------------------------------------------
+  Total endpoints: 138
+  [OK] SUCCESS: 49 (35.5%)
+  [WARN] NOT_FOUND: 9 (6.5%) - Esperado con IDs dummy
+  [WARN] VALIDATION_ERROR: 21 (15.2%) - Esperado sin body
+  [ERROR] FORBIDDEN: 44 (31.9%) - SIN PERMISOS
+  [ERROR] UNAUTHORIZED: 0 (0.0%)
+  [ERROR] OTROS: 15 (10.9%)
+
+  Endpoints SIN PERMISOS (44):
+    - POST /individuals/ (entidad: individuals)
+    - PUT /individuals/{individual_id} (entidad: individuals)
+    - DELETE /individuals/{individual_id} (entidad: individuals)
+    - POST /individuals/with-user (entidad: individuals)
+    - POST /individuals/extended (entidad: individuals)
+    - PATCH /individuals/{individual_id}/verify (entidad: individuals)
+    - POST /individuals/{individual_id}/skills (entidad: individuals)
+    - DELETE /individuals/{individual_id}/skills/{skill_name} (entidad: individuals)
+    - PATCH /individuals/{individual_id}/skills/{skill_name} (entidad: individuals)
+    - GET /individuals/statistics/skills (entidad: individuals)
+    - POST /companies/ (entidad: companies)
+    - PUT /companies/{company_id} (entidad: companies)
+    - DELETE /companies/{company_id} (entidad: companies)
+    - PATCH /companies/{company_id}/activate (entidad: companies)
+    - PATCH /companies/{company_id}/suspend (entidad: companies)
+    - PATCH /companies/{company_id}/deactivate (entidad: companies)
+    - POST /branches/ (entidad: branches)
+    - PUT /branches/{branch_id} (entidad: branches)
+    - DELETE /branches/{branch_id} (entidad: branches)
+    - PATCH /branches/{branch_id}/status (entidad: branches)
+    - DELETE /products/{product_id} (entidad: products)
+    - POST /vouchers/maintenance/check-overdue (entidad: vouchers)
+    - DELETE /voucher-details/{detail_id} (entidad: voucher-details)
+    - GET /voucher-details/search/products (entidad: voucher-details)
+    - POST /admin/user-permissions/grant/{user_id} (entidad: admin)
+    - DELETE /admin/user-permissions/{user_permission_id} (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id} (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id}/effective (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id}/details (entidad: admin)
+    - PATCH /admin/user-permissions/{user_permission_id}/extend (entidad: admin)
+    - POST /admin/user-permissions/cleanup-expired (entidad: admin)
+    - GET /admin/user-permissions/levels (entidad: admin)
+    - POST /users (entidad: users)
+    - GET /users (entidad: users)
+    - GET /users/{user_id} (entidad: users)
+    - PUT /users/{user_id} (entidad: users)
+    - DELETE /users/{user_id} (entidad: users)
+    - DELETE /users/{user_id}/hard (entidad: users)
+    - PATCH /users/{user_id}/activate (entidad: users)
+    - PATCH /users/{user_id}/deactivate (entidad: users)
+    - POST /examples (entidad: examples)
+    - PUT /examples/{example_id} (entidad: examples)
+    - DELETE /examples/{example_id} (entidad: examples)
+    - POST /examples/with-user (entidad: examples)
+
+Checker (checker@gpamex.com) - Role: 5
+--------------------------------------------------------------------------------
+  Total endpoints: 138
+  [OK] SUCCESS: 19 (13.8%)
+  [WARN] NOT_FOUND: 7 (5.1%) - Esperado con IDs dummy
+  [WARN] VALIDATION_ERROR: 9 (6.5%) - Esperado sin body
+  [ERROR] FORBIDDEN: 97 (70.3%) - SIN PERMISOS
+  [ERROR] UNAUTHORIZED: 0 (0.0%)
+  [ERROR] OTROS: 6 (4.3%)
+
+  Endpoints SIN PERMISOS (97):
+    - POST /individuals/ (entidad: individuals)
+    - PUT /individuals/{individual_id} (entidad: individuals)
+    - DELETE /individuals/{individual_id} (entidad: individuals)
+    - POST /individuals/with-user (entidad: individuals)
+    - POST /individuals/extended (entidad: individuals)
+    - PATCH /individuals/{individual_id}/verify (entidad: individuals)
+    - POST /individuals/{individual_id}/skills (entidad: individuals)
+    - DELETE /individuals/{individual_id}/skills/{skill_name} (entidad: individuals)
+    - PATCH /individuals/{individual_id}/skills/{skill_name} (entidad: individuals)
+    - GET /individuals/statistics/skills (entidad: individuals)
+    - POST /companies/ (entidad: companies)
+    - GET /companies/ (entidad: companies)
+    - GET /companies/{company_id} (entidad: companies)
+    - GET /companies/{company_id}/details (entidad: companies)
+    - PUT /companies/{company_id} (entidad: companies)
+    - DELETE /companies/{company_id} (entidad: companies)
+    - GET /companies/search/by-tin/{tin} (entidad: companies)
+    - GET /companies/by-country/{country_id} (entidad: companies)
+    - GET /companies/by-state/{state_id} (entidad: companies)
+    - POST /companies/search/advanced (entidad: companies)
+    - GET /companies/statistics/overview (entidad: companies)
+    - PATCH /companies/{company_id}/activate (entidad: companies)
+    - PATCH /companies/{company_id}/suspend (entidad: companies)
+    - PATCH /companies/{company_id}/deactivate (entidad: companies)
+    - GET /companies/enums/statuses (entidad: companies)
+    - GET /companies/enums/tax-systems (entidad: companies)
+    - POST /branches/ (entidad: branches)
+    - GET /branches/{branch_id} (entidad: branches)
+    - GET /branches/code/{code} (entidad: branches)
+    - PUT /branches/{branch_id} (entidad: branches)
+    - DELETE /branches/{branch_id} (entidad: branches)
+    - GET /branches/ (entidad: branches)
+    - GET /branches/by-company/{company_id} (entidad: branches)
+    - GET /branches/by-type/{branch_type} (entidad: branches)
+    - GET /branches/by-location/ (entidad: branches)
+    - PATCH /branches/{branch_id}/status (entidad: branches)
+    - GET /branches/statistics/overview (entidad: branches)
+    - GET /branches/enums/values (entidad: branches)
+    - POST /products/ (entidad: products)
+    - GET /products/ (entidad: products)
+    - GET /products/paginated (entidad: products)
+    - GET /products/search (entidad: products)
+    - GET /products/top-used (entidad: products)
+    - GET /products/category/{category} (entidad: products)
+    - GET /products/{product_id} (entidad: products)
+    - PUT /products/{product_id} (entidad: products)
+    - DELETE /products/{product_id} (entidad: products)
+    - POST /vouchers/ (entidad: vouchers)
+    - GET /vouchers/{voucher_id} (entidad: vouchers)
+    - GET /vouchers/folio/{folio} (entidad: vouchers)
+    - PUT /vouchers/{voucher_id} (entidad: vouchers)
+    - GET /vouchers/ (entidad: vouchers)
+    - POST /vouchers/{voucher_id}/approve (entidad: vouchers)
+    - POST /vouchers/{voucher_id}/start-transit (entidad: vouchers)
+    - POST /vouchers/{voucher_id}/close (entidad: vouchers)
+    - POST /vouchers/{voucher_id}/cancel (entidad: vouchers)
+    - POST /vouchers/{voucher_id}/confirm-entry (entidad: vouchers)
+    - POST /vouchers/{voucher_id}/validate-exit (entidad: vouchers)
+    - GET /vouchers/{voucher_id}/logs (entidad: vouchers)
+    - GET /vouchers/search/advanced (entidad: vouchers)
+    - GET /vouchers/company/{company_id} (entidad: vouchers)
+    - GET /vouchers/status/{status} (entidad: vouchers)
+    - GET /vouchers/{voucher_id}/validate-qr (entidad: vouchers)
+    - GET /vouchers/statistics/overview (entidad: vouchers)
+    - GET /vouchers/utils/enums (entidad: vouchers)
+    - POST /vouchers/maintenance/check-overdue (entidad: vouchers)
+    - POST /vouchers/{voucher_id}/generate-pdf (entidad: vouchers)
+    - POST /vouchers/{voucher_id}/generate-qr (entidad: vouchers)
+    - GET /vouchers/tasks/{task_id}/status (entidad: vouchers)
+    - GET /vouchers/{voucher_id}/generation-info (entidad: vouchers)
+    - GET /vouchers/{voucher_id}/pdf-metadata (entidad: vouchers)
+    - POST /voucher-details/ (entidad: voucher-details)
+    - GET /voucher-details/{detail_id} (entidad: voucher-details)
+    - GET /voucher-details/voucher/{voucher_id} (entidad: voucher-details)
+    - PUT /voucher-details/{detail_id} (entidad: voucher-details)
+    - DELETE /voucher-details/{detail_id} (entidad: voucher-details)
+    - GET /voucher-details/search/products (entidad: voucher-details)
+    - POST /admin/user-permissions/grant/{user_id} (entidad: admin)
+    - DELETE /admin/user-permissions/{user_permission_id} (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id} (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id}/effective (entidad: admin)
+    - GET /admin/user-permissions/user/{user_id}/details (entidad: admin)
+    - PATCH /admin/user-permissions/{user_permission_id}/extend (entidad: admin)
+    - POST /admin/user-permissions/cleanup-expired (entidad: admin)
+    - GET /admin/user-permissions/levels (entidad: admin)
+    - POST /users (entidad: users)
+    - GET /users (entidad: users)
+    - GET /users/{user_id} (entidad: users)
+    - PUT /users/{user_id} (entidad: users)
+    - DELETE /users/{user_id} (entidad: users)
+    - DELETE /users/{user_id}/hard (entidad: users)
+    - PATCH /users/{user_id}/activate (entidad: users)
+    - PATCH /users/{user_id}/deactivate (entidad: users)
+    - POST /examples (entidad: examples)
+    - PUT /examples/{example_id} (entidad: examples)
+    - DELETE /examples/{example_id} (entidad: examples)
+    - POST /examples/with-user (entidad: examples)
+
+================================================================================
+RESUMEN POR ENTIDAD
+================================================================================
+
+ADMIN
+--------------------------------------------------------------------------------
+  Admin                [OK] ACCESO COMPLETO
+  Manager              [ERROR] SIN ACCESO
+  Supervisor           [ERROR] SIN ACCESO
+  Collaborator         [ERROR] SIN ACCESO
+  Checker              [ERROR] SIN ACCESO
+
+BRANCHES
+--------------------------------------------------------------------------------
+  Admin                [OK] ACCESO COMPLETO
+  Manager              [OK] ACCESO COMPLETO
+  Supervisor           [WARN] ACCESO PARCIAL (4/12 bloqueados)
+  Collaborator         [WARN] ACCESO PARCIAL (4/12 bloqueados)
+  Checker              [ERROR] SIN ACCESO
+
+COMPANIES
+--------------------------------------------------------------------------------
+  Admin                [WARN] ACCESO CON ERRORES
+  Manager              [WARN] ACCESO PARCIAL (1/16 bloqueados)
+  Supervisor           [WARN] ACCESO PARCIAL (1/16 bloqueados)
+  Collaborator         [WARN] ACCESO PARCIAL (6/16 bloqueados)
+  Checker              [ERROR] SIN ACCESO
+
+COUNTRIES
+--------------------------------------------------------------------------------
+  Admin                [WARN] ACCESO CON ERRORES
+  Manager              [WARN] ACCESO CON ERRORES
+  Supervisor           [WARN] ACCESO CON ERRORES
+  Collaborator         [WARN] ACCESO CON ERRORES
+  Checker              [WARN] ACCESO CON ERRORES
+
+EXAMPLES
+--------------------------------------------------------------------------------
+  Admin                [OK] ACCESO COMPLETO
+  Manager              [WARN] ACCESO PARCIAL (1/6 bloqueados)
+  Supervisor           [WARN] ACCESO PARCIAL (2/6 bloqueados)
+  Collaborator         [WARN] ACCESO PARCIAL (4/6 bloqueados)
+  Checker              [WARN] ACCESO PARCIAL (4/6 bloqueados)
+
+HEALTH
+--------------------------------------------------------------------------------
+  Admin                [OK] ACCESO COMPLETO
+  Manager              [OK] ACCESO COMPLETO
+  Supervisor           [OK] ACCESO COMPLETO
+  Collaborator         [OK] ACCESO COMPLETO
+  Checker              [OK] ACCESO COMPLETO
+
+INDIVIDUALS
+--------------------------------------------------------------------------------
+  Admin                [WARN] ACCESO CON ERRORES
+  Manager              [WARN] ACCESO PARCIAL (1/36 bloqueados)
+  Supervisor           [WARN] ACCESO PARCIAL (4/36 bloqueados)
+  Collaborator         [WARN] ACCESO PARCIAL (10/36 bloqueados)
+  Checker              [WARN] ACCESO PARCIAL (10/36 bloqueados)
+
+LOGIN
+--------------------------------------------------------------------------------
+  Admin                [OK] ACCESO COMPLETO
+  Manager              [OK] ACCESO COMPLETO
+  Supervisor           [OK] ACCESO COMPLETO
+  Collaborator         [OK] ACCESO COMPLETO
+  Checker              [OK] ACCESO COMPLETO
+
+PRODUCTS
+--------------------------------------------------------------------------------
+  Admin                [OK] ACCESO COMPLETO
+  Manager              [OK] ACCESO COMPLETO
+  Supervisor           [WARN] ACCESO PARCIAL (1/9 bloqueados)
+  Collaborator         [WARN] ACCESO PARCIAL (1/9 bloqueados)
+  Checker              [ERROR] SIN ACCESO
+
+STATES
+--------------------------------------------------------------------------------
+  Admin                [OK] ACCESO COMPLETO
+  Manager              [OK] ACCESO COMPLETO
+  Supervisor           [OK] ACCESO COMPLETO
+  Collaborator         [OK] ACCESO COMPLETO
+  Checker              [OK] ACCESO COMPLETO
+
+TOKEN
+--------------------------------------------------------------------------------
+  Admin                [OK] ACCESO COMPLETO
+  Manager              [OK] ACCESO COMPLETO
+  Supervisor           [OK] ACCESO COMPLETO
+  Collaborator         [OK] ACCESO COMPLETO
+  Checker              [OK] ACCESO COMPLETO
+
+USERS
+--------------------------------------------------------------------------------
+  Admin                [OK] ACCESO COMPLETO
+  Manager              [WARN] ACCESO PARCIAL (4/10 bloqueados)
+  Supervisor           [WARN] ACCESO PARCIAL (7/10 bloqueados)
+  Collaborator         [WARN] ACCESO PARCIAL (8/10 bloqueados)
+  Checker              [WARN] ACCESO PARCIAL (8/10 bloqueados)
+
+VOUCHER-DETAILS
+--------------------------------------------------------------------------------
+  Admin                [WARN] ACCESO PARCIAL (1/6 bloqueados)
+  Manager              [WARN] ACCESO PARCIAL (1/6 bloqueados)
+  Supervisor           [WARN] ACCESO PARCIAL (2/6 bloqueados)
+  Collaborator         [WARN] ACCESO PARCIAL (2/6 bloqueados)
+  Checker              [ERROR] SIN ACCESO
+
+VOUCHERS
+--------------------------------------------------------------------------------
+  Admin                [WARN] ACCESO CON ERRORES
+  Manager              [WARN] ACCESO CON ERRORES
+  Supervisor           [WARN] ACCESO PARCIAL (1/24 bloqueados)
+  Collaborator         [WARN] ACCESO PARCIAL (1/24 bloqueados)
+  Checker              [ERROR] SIN ACCESO

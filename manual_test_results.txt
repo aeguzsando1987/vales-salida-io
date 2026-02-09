@@ -1,0 +1,71 @@
+======================================================================
+PRUEBAS MANUALES DE CASOS DE USO
+======================================================================
+Base URL: http://localhost:8001
+Fecha: 2025-12-22 18:22:58
+
+  [OK] Servidor activo y respondiendo
+
+======================================================================
+CASO 1: SALIDA CON RETORNO (Roberto - Collaborator)
+======================================================================
+  [OK] Login exitoso como collaborator
+
+[PASO 1] Crear vale de salida con retorno
+  [OK] Vale creado - ID: 7, Folio: TES-SAL-2025-0005, Status: PENDING
+
+[PASO 2] Agregar lineas de detalle
+  [ERROR] No se pudo crear linea 1 o respuesta incorrecta
+  [ERROR] No se pudo crear linea 2 o respuesta incorrecta
+
+[PASO 3] Aprobar vale (Manager)
+  [OK] Login exitoso como manager
+  [OK] Vale aprobado - Status: APPROVED
+
+[PASO 4] Validar salida (Checker - QR scan)
+  [OK] Login exitoso como checker
+  [SKIP] No se pudieron crear detalles, saltando validaciones
+
+======================================================================
+CASO 2: SALIDA SIN RETORNO (Paula - Collaborator)
+======================================================================
+  [OK] Login exitoso como collaborator
+
+[PASO 1] Crear vale de salida SIN retorno
+  [OK] Vale creado - ID: 8, with_return: False
+
+[PASO 2] Agregar linea de detalle
+  [OK] Linea creada - ID: 7
+
+[PASO 3] Aprobar vale (Manager)
+  [OK] Login exitoso como manager
+  [OK] Vale aprobado - Status: APPROVED
+
+[PASO 4] Validar salida (Checker) - DEBE CAMBIAR A CLOSED DIRECTO
+  [OK] Login exitoso como checker
+  [ERROR] POST /vouchers/8/validate-exit - Status 403 (esperado 200)
+         {"detail":"Permiso insuficiente para vouchers:validate_exit. Requiere nivel 3, tienes nivel 0"}
+
+======================================================================
+CASO 4: SOLO ENTRADA (Richi - Collaborator)
+======================================================================
+  [OK] Login exitoso como collaborator
+
+[PASO 1] Crear vale de solo entrada (ENTRY)
+  [ERROR] POST /vouchers/ - Status 404 (esperado 201)
+         {"detail":"Individual con ID 4 no encontrado"}
+  [SKIP] No se pudo crear voucher, saltando resto del caso 4
+
+======================================================================
+RESUMEN DE PRUEBAS
+======================================================================
+Total: 17 pruebas
+[OK] Exitosas: 13
+[ERROR] Fallidas: 4
+
+Errores encontrados:
+  1. No se pudo crear linea 1 o respuesta incorrecta
+  2. No se pudo crear linea 2 o respuesta incorrecta
+  3. POST /vouchers/8/validate-exit - Status 403 (esperado 200)
+  4. POST /vouchers/ - Status 404 (esperado 201)
+======================================================================

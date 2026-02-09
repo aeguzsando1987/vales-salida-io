@@ -99,7 +99,8 @@ def generate_pdf_task(self, voucher_id: int) -> dict:
             logger.info(f"[TASK PDF] Token QR expirado, regenerando...")
             voucher.qr_token = service._generate_qr_token(voucher_id)
             self.db.commit()
-            self.db.refresh(voucher)
+            # Recargar voucher con todas las relaciones después del commit
+            voucher = service.get_voucher_with_details(voucher_id)
 
         # Generar imagen QR
         logger.info(f"[TASK PDF] Generando imagen QR...")

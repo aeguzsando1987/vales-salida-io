@@ -924,7 +924,9 @@ def download_voucher_pdf(
 
     # Obtener voucher para validar existencia y obtener folio
     try:
-        voucher = controller.get(voucher_id)
+        voucher = controller.get_by_id(voucher_id)
+        # Extraer folio (voucher puede ser dict o Pydantic model)
+        folio = voucher.get('folio') if isinstance(voucher, dict) else voucher.folio
     except Exception:
         raise HTTPException(
             status_code=404,
@@ -937,19 +939,19 @@ def download_voucher_pdf(
     except Exception:
         raise HTTPException(
             status_code=404,
-            detail=f"PDF no encontrado para el voucher {voucher.folio}. Genere un nuevo PDF primero."
+            detail=f"PDF no encontrado para el voucher {folio}. Genere un nuevo PDF primero."
         )
 
     # Verificar que el archivo físico existe
-    file_path = metadata.get('file_path')
+    file_path = metadata.file_path
     if not file_path or not os.path.exists(file_path):
         raise HTTPException(
             status_code=404,
-            detail=f"Archivo PDF no encontrado o expiró. Genere un nuevo PDF para el voucher {voucher.folio}."
+            detail=f"Archivo PDF no encontrado o expiró. Genere un nuevo PDF para el voucher {folio}."
         )
 
     # Generar nombre de archivo basado en folio
-    filename = f"vale_{voucher.folio}.pdf"
+    filename = f"vale_{folio}.pdf"
 
     # Retornar archivo
     return FileResponse(

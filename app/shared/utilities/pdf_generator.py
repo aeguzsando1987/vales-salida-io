@@ -102,25 +102,37 @@ class PDFGenerator:
 
     def _setup_custom_styles(self):
         """Configura estilos personalizados para el documento."""
-        # Título principal (nombre de empresa)
+        # Título "COMPROBANTE DE..." - NUEVO
         self.styles.add(ParagraphStyle(
-            name='CompanyName',
+            name='ComprobanteTitle',
             parent=self.styles['Heading1'],
-            fontSize=20,
+            fontSize=16,
             textColor=colors.black,
-            spaceAfter=5,
+            spaceAfter=8,
             spaceBefore=0,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
 
-        # Folio
+        # Título principal (nombre de empresa) - REDUCIDO
+        self.styles.add(ParagraphStyle(
+            name='CompanyName',
+            parent=self.styles['Heading1'],
+            fontSize=14,
+            textColor=colors.black,
+            spaceAfter=3,
+            spaceBefore=0,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        ))
+
+        # Folio - REDUCIDO
         self.styles.add(ParagraphStyle(
             name='Folio',
             parent=self.styles['Normal'],
-            fontSize=14,
+            fontSize=11,
             textColor=colors.HexColor('#333333'),
-            spaceAfter=10,
+            spaceAfter=5,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
@@ -231,16 +243,24 @@ class PDFGenerator:
                 color,
                 voucher.folio,
                 voucher.status,
-                getattr(voucher.company, 'legal_name', 'N/A') if hasattr(voucher, 'company') and voucher.company else 'N/A'
+                getattr(voucher.company, 'legal_name', 'N/A') if hasattr(voucher, 'company') and voucher.company else 'N/A',
+                voucher.voucher_type
             ))
 
             # Información del voucher (metadata)
             story.extend(self._build_voucher_info(voucher))
 
             # Detalles/líneas del voucher
-            if hasattr(voucher, 'details') and voucher.details:
+            print(f"[DEBUG] hasattr(voucher, 'details'): {hasattr(voucher, 'details')}")
+            if hasattr(voucher, 'details'):
+                print(f"[DEBUG] voucher.details: {voucher.details}")
+                print(f"[DEBUG] len(voucher.details): {len(voucher.details) if voucher.details else 0}")
+
+            if hasattr(voucher, 'details') and voucher.details and len(voucher.details) > 0:
                 story.append(Spacer(1, 0.3*inch))
                 story.extend(self._build_details_table(voucher.details))
+            else:
+                print(f"[DEBUG] NO SE AGREGARON DETALLES - Condición falló")
 
             # Notas/observaciones
             if voucher.notes:
@@ -249,7 +269,7 @@ class PDFGenerator:
 
             # Firmas digitales
             story.append(Spacer(1, 0.4*inch))
-            story.extend(self._build_signatures(voucher, voucher_type_key))
+            story.extend(self._build_signatures())
 
             # Footer con QR y timestamp
             story.append(Spacer(1, 0.3*inch))
@@ -314,7 +334,7 @@ class PDFGenerator:
         else:
             return 'ENTRY'  # Default
 
-    def _build_header(self, label: str, color: colors.Color, folio: str, status: str, company_name: str):
+    def _build_header(self, label: str, color: colors.Color, folio: str, status: str, company_name: str, voucher_type: str):
         """Construye el encabezado del documento con badges."""
         elements = []
 
@@ -329,31 +349,39 @@ class PDFGenerator:
         }
         status_texto = status_map.get(status, status)
 
-        # Nombre de empresa
-        company_para = Paragraph(company_name, self.styles['CompanyName'])
-        elements.append(company_para)
-        elements.append(Spacer(1, 0.05*inch))
-
-        # Folio
-        folio_para = Paragraph(folio, self.styles['Folio'])
-        elements.append(folio_para)
+        # Título "COMPROBANTE DE..." - NUEVO
+        comprobante_tipo = "ENTRADA" if voucher_type == "ENTRY" else "SALIDA"
+        comprobante_title = Paragraph(
+            f"<b>COMPROBANTE DE {comprobante_tipo}</b>",
+            self.styles['ComprobanteTitle']
+        )
+        elements.append(comprobante_title)
         elements.append(Spacer(1, 0.1*inch))
 
+        # Nombre de empresa - ESPACIOS REDUCIDOS
+        company_para = Paragraph(company_name, self.styles['CompanyName'])
+        elements.append(company_para)
+        elements.append(Spacer(1, 0.02*inch))
+
+        # Folio - ESPACIOS REDUCIDOS
+        folio_para = Paragraph(folio, self.styles['Folio'])
+        elements.append(folio_para)
+        elements.append(Spacer(1, 0.05*inch))
+
+        # Crear tabla con tipo de voucher y status en una sola fila
         # Badge de tipo de voucher (con color de fondo)
-        type_badge_data = [[Paragraph(f"<b>{label}</b>", self.styles['TypeBadge'])]]
-        type_badge_table = Table(type_badge_data, colWidths=[4.5*inch])
-        type_badge_table.setStyle(TableStyle([
+        type_badge = Paragraph(f"<b>{label}</b>", self.styles['TypeBadge'])
+        type_cell = Table([[type_badge]], colWidths=[3*inch])
+        type_cell.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), color),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('ROUNDEDCORNERS', [5, 5, 5, 5]),  # Bordes redondeados
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('ROUNDEDCORNERS', [5, 5, 5, 5]),
         ]))
-        elements.append(type_badge_table)
-        elements.append(Spacer(1, 0.05*inch))
 
-        # Badge de estado (con color específico)
+        # Badge de estado (con color específico) - MAS PROMINENTE
         status_config = self.STATUS_COLORS.get(status, {
             'bg': colors.HexColor('#e2e3e5'),
             'fg': colors.HexColor('#383d41')
@@ -362,30 +390,37 @@ class PDFGenerator:
         status_style = ParagraphStyle(
             name='StatusBadgeColored',
             parent=self.styles['StatusBadge'],
-            textColor=status_config['fg']
+            textColor=status_config['fg'],
+            fontSize=12  # Aumentado
         )
 
-        status_badge_data = [[Paragraph(f"<b>{status_texto}</b>", status_style)]]
-        status_badge_table = Table(status_badge_data, colWidths=[2*inch])
-        status_badge_table.setStyle(TableStyle([
+        status_badge = Paragraph(f"<b>ESTADO: {status_texto}</b>", status_style)
+        status_cell = Table([[status_badge]], colWidths=[2.3*inch])
+        status_cell.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), status_config['bg']),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('ROUNDEDCORNERS', [5, 5, 5, 5]),
         ]))
-        elements.append(status_badge_table)
 
-        # Línea divisoria
-        elements.append(Spacer(1, 0.15*inch))
+        # Combinar tipo y status en una fila
+        combined_table = Table([[type_cell, status_cell]], colWidths=[3.1*inch, 2.4*inch])
+        combined_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        elements.append(combined_table)
+
+        # Línea divisoria - ESPACIOS REDUCIDOS
+        elements.append(Spacer(1, 0.08*inch))
         line_data = [['']]
         line_table = Table(line_data, colWidths=[5.5*inch])
         line_table.setStyle(TableStyle([
-            ('LINEABOVE', (0, 0), (-1, 0), 3, colors.HexColor('#333333')),
+            ('LINEABOVE', (0, 0), (-1, 0), 2, colors.HexColor('#333333')),
         ]))
         elements.append(line_table)
-        elements.append(Spacer(1, 0.15*inch))
+        elements.append(Spacer(1, 0.08*inch))
 
         return elements
 
@@ -520,69 +555,73 @@ class PDFGenerator:
         elements.append(details_table)
         return elements
 
-    def _build_signatures(self, voucher: Any, voucher_type_key: str):
-        """Construye la sección de firmas digitales con líneas elegantes."""
+    def _build_signatures(self):
+        """
+        Construye la sección de firmas con 4 espacios fijos.
+        Cada espacio tiene una línea negra y texto estático debajo.
+        Las firmas son estáticas y no dependen de datos del voucher.
+        """
         elements = []
 
         elements.append(Paragraph('<b>Firmas</b>', self.styles['SectionTitle']))
+        elements.append(Spacer(1, 0.15*inch))
 
-        # Entregó (siempre presente)
-        delivered_name = getattr(voucher.delivered_by, 'name', 'N/A') if hasattr(voucher, 'delivered_by') and voucher.delivered_by else '_____________________'
-        sig1 = [
-            Paragraph('', self.styles['Body_Custom']),  # Espacio superior
-            Paragraph('<b>' + delivered_name + '</b>', self.styles['Body_Custom']),
-            Paragraph('<font color="#666666">Entregó</font>', self.styles['Body_Custom'])
+        # 4 ESPACIOS FIJOS (sin importar si hay datos o no)
+        signatures = [
+            'Nombre y firma de quien entrega',
+            'Nombre y firma de quien recibe',
+            'Nombre y firma de quien autoriza la salida',
+            'Nombre y firma de control patrimonial'
         ]
 
-        # Aprobó (si existe)
-        if voucher.approved_by_id:
-            approved_name = getattr(voucher.approved_by, 'name', 'N/A') if hasattr(voucher, 'approved_by') and voucher.approved_by else '_____________________'
-            sig2 = [
-                Paragraph('', self.styles['Body_Custom']),
-                Paragraph('<b>' + approved_name + '</b>', self.styles['Body_Custom']),
-                Paragraph('<font color="#666666">Aprobó</font>', self.styles['Body_Custom'])
+        # Ancho de cada columna (4 espacios en total)
+        col_width = 5.5 * inch / 4
+
+        # Crear las 4 celdas de firma
+        sig_cells = []
+        for label in signatures:
+            # Cada celda contiene:
+            # 1. Espacio en blanco para firma manuscrita
+            # 2. Línea horizontal negra de 2 puntos
+            # 3. Texto estático del label
+
+            # Línea de firma
+            line_table = Table([['']], colWidths=[col_width - 0.3*inch])
+            line_table.setStyle(TableStyle([
+                ('LINEABOVE', (0, 0), (0, 0), 2, colors.black),  # Línea negra de 2 puntos
+            ]))
+
+            cell_content = [
+                Spacer(1, 0.4*inch),  # Espacio para firma manuscrita
+                line_table,
+                Spacer(1, 0.08*inch),
+                Paragraph(
+                    f'<font size="8" color="#333333">{label}</font>',
+                    self.styles['Body_Custom']
+                ),
             ]
-        else:
-            sig2 = None
 
-        # Recibió (si existe - para retornos)
-        if voucher.received_by_id:
-            received_name = getattr(voucher.received_by, 'name', 'N/A') if hasattr(voucher, 'received_by') and voucher.received_by else '_____________________'
-            sig3 = [
-                Paragraph('', self.styles['Body_Custom']),
-                Paragraph('<b>' + received_name + '</b>', self.styles['Body_Custom']),
-                Paragraph('<font color="#666666">Recibió</font>', self.styles['Body_Custom'])
-            ]
-        else:
-            sig3 = None
+            sig_cells.append(cell_content)
 
-        # Construir fila de firmas (2 o 3 columnas según disponibilidad)
-        sig_row = [sig1]
-        col_widths = []
+        # Crear tabla con las 4 firmas en una fila
+        # Cada celda contiene una mini-tabla vertical con los elementos
+        cells_as_tables = []
+        for cell_content in sig_cells:
+            mini_table = Table([[item] for item in cell_content], colWidths=[col_width - 0.2*inch])
+            mini_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (0, -1), 'TOP'),
+            ]))
+            cells_as_tables.append(mini_table)
 
-        if sig2:
-            sig_row.append(sig2)
-        if sig3:
-            sig_row.append(sig3)
-
-        # Calcular anchos de columnas
-        num_sigs = len(sig_row)
-        col_width = 5.5 * inch / num_sigs
-        col_widths = [col_width] * num_sigs
-
-        # Crear tabla de firmas
-        sig_table = Table([sig_row], colWidths=col_widths)
-
-        # Estilos con línea superior (simulando signature-line del CSS)
-        style_commands = [
-            ('LINEABOVE', (0, 0), (-1, 0), 2, colors.HexColor('#333333')),  # Línea de firma
+        # Tabla principal con las 4 columnas
+        sig_table = Table([cells_as_tables], colWidths=[col_width] * 4)
+        sig_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]
-
-        sig_table.setStyle(TableStyle(style_commands))
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ]))
 
         elements.append(sig_table)
         return elements
@@ -688,10 +727,10 @@ class PDFGenerator:
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ]))
 
-            # Texto de QR y timestamp
+            # Texto de QR y timestamp - ACTUALIZADO
             generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             text_content = [
-                Paragraph('<font color="#666666" size="9"><b>Código QR</b></font>', self.styles['Body_Custom']),
+                Paragraph('<font color="#333333" size="9"><b>Usa este QR para buscar este vale en el sistema</b></font>', self.styles['Body_Custom']),
                 Spacer(1, 0.05*inch),
                 Paragraph(f'<font color="#999999" size="8">Generado: {generated_at} UTC</font>', self.styles['Body_Custom'])
             ]

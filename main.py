@@ -249,9 +249,10 @@ def get_user_roles():
     return [
         {"id": 1, "name": "Admin", "description": "Administrador con acceso total"},
         {"id": 2, "name": "Gerente", "description": "Gerente con acceso de gestión"},
-        {"id": 3, "name": "Colaborador", "description": "Colaborador con acceso limitado"},
+        {"id": 3, "name": "Supervisor", "description": "Supervisor con acceso a aprobaciones"},
         {"id": 4, "name": "Lector", "description": "Usuario con acceso de solo lectura"},
-        {"id": 5, "name": "Vigilante", "description": "Vigilante/Checker con acceso a validación de salidas"}
+        {"id": 5, "name": "Invitado", "description": "Acceso mínimo solo a catálogos"},
+        {"id": 6, "name": "Vigilante", "description": "Check de salidas y validación de entradas"}
     ]
 
 @app.get("/users/{user_id}", tags=["users"], summary="Obtener usuario específico")

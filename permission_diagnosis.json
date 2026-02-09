@@ -1,0 +1,1255 @@
+{
+  "endpoints": {
+    "total": 138,
+    "by_entity": {
+      "Individuals": 36,
+      "Countries": 4,
+      "States": 4,
+      "Companies": 16,
+      "Branches": 12,
+      "Products": 9,
+      "Vouchers": 24,
+      "Voucher Details": 6,
+      "Admin - User Permissions": 8,
+      "auth": 2,
+      "users": 10,
+      "examples": 6,
+      "health": 1
+    }
+  },
+  "permissions": {
+    "total": 148,
+    "by_entity": {
+      "individuals": 40,
+      "countries": 5,
+      "states": 5,
+      "users": 12,
+      "companies": 18,
+      "branches": 12,
+      "products": 9,
+      "vouchers": 24,
+      "voucher-details": 6,
+      "admin": 8,
+      "token": 1,
+      "login": 1,
+      "examples": 6,
+      "health": 1
+    }
+  },
+  "role_coverage": {
+    "Admin": 100.0,
+    "Manager": 100.0,
+    "Collaborator": 100.0,
+    "Reader": 100.0,
+    "Guest": 100.0,
+    "Checker": 100.0
+  },
+  "unassigned_count": 0,
+  "permission_tests": {
+    "Admin": {
+      "admin": {
+        "max_level": 4,
+        "accessible": 8,
+        "total": 8,
+        "levels": {
+          "grant": 4,
+          "user_permissions": 4,
+          "user": 4,
+          "effective": 4,
+          "details": 4,
+          "extend": 4,
+          "cleanup_expired": 4,
+          "levels": 4
+        }
+      },
+      "branches": {
+        "max_level": 4,
+        "accessible": 12,
+        "total": 12,
+        "levels": {
+          "create": 4,
+          "get": 4,
+          "code": 4,
+          "update": 4,
+          "delete": 4,
+          "list": 4,
+          "by_company": 4,
+          "by_type": 4,
+          "by_location": 4,
+          "status": 4,
+          "overview": 4,
+          "values": 4
+        }
+      },
+      "companies": {
+        "max_level": 4,
+        "accessible": 18,
+        "total": 18,
+        "levels": {
+          "list": 4,
+          "get": 4,
+          "create": 4,
+          "update": 4,
+          "delete": 4,
+          "search": 4,
+          "view_statistics": 4,
+          "details": 4,
+          "by_tin": 4,
+          "by_country": 4,
+          "by_state": 4,
+          "advanced": 4,
+          "overview": 4,
+          "activate": 4,
+          "suspend": 4,
+          "deactivate": 4,
+          "statuses": 4,
+          "tax_systems": 4
+        }
+      },
+      "countries": {
+        "max_level": 4,
+        "accessible": 5,
+        "total": 5,
+        "levels": {
+          "read": 4,
+          "list": 4,
+          "get": 4,
+          "iso": 4,
+          "search": 4
+        }
+      },
+      "examples": {
+        "max_level": 4,
+        "accessible": 6,
+        "total": 6,
+        "levels": {
+          "create": 4,
+          "list": 4,
+          "get": 4,
+          "update": 4,
+          "delete": 4,
+          "with_user": 4
+        }
+      },
+      "health": {
+        "max_level": 4,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "list": 4
+        }
+      },
+      "individuals": {
+        "max_level": 4,
+        "accessible": 35,
+        "total": 35,
+        "levels": {
+          "list": 4,
+          "get": 4,
+          "create": 4,
+          "update": 4,
+          "delete": 4,
+          "create_with_user": 4,
+          "search": 4,
+          "verify": 4,
+          "view_statistics": 4,
+          "manage_skills": 4,
+          "view_skills": 4,
+          "with_user": 4,
+          "extended": 4,
+          "by_document": 4,
+          "by_phone": 4,
+          "by_status": 4,
+          "verified": 4,
+          "by_skill": 4,
+          "statistics": 4,
+          "age": 4,
+          "bmi": 4,
+          "validate": 4,
+          "document_types": 4,
+          "genders": 4,
+          "marital_status": 4,
+          "individual_status": 4,
+          "skills": 4,
+          "summary": 4,
+          "category": 4,
+          "expert": 4,
+          "level": 4,
+          "experience": 4,
+          "experts": 4,
+          "skill_categories": 4,
+          "skill_levels": 4
+        }
+      },
+      "login": {
+        "max_level": 4,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "create": 4
+        }
+      },
+      "products": {
+        "max_level": 4,
+        "accessible": 9,
+        "total": 9,
+        "levels": {
+          "create": 4,
+          "list": 4,
+          "paginated": 4,
+          "search": 4,
+          "top_used": 4,
+          "category": 4,
+          "get": 4,
+          "update": 4,
+          "delete": 4
+        }
+      },
+      "states": {
+        "max_level": 4,
+        "accessible": 5,
+        "total": 5,
+        "levels": {
+          "read": 4,
+          "list": 4,
+          "get": 4,
+          "by_country": 4,
+          "search": 4
+        }
+      },
+      "token": {
+        "max_level": 4,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "create": 4
+        }
+      },
+      "users": {
+        "max_level": 4,
+        "accessible": 11,
+        "total": 11,
+        "levels": {
+          "read": 4,
+          "create": 4,
+          "update": 4,
+          "delete": 4,
+          "list": 4,
+          "me": 4,
+          "roles": 4,
+          "get": 4,
+          "hard": 4,
+          "activate": 4,
+          "deactivate": 4
+        }
+      },
+      "voucher-details": {
+        "max_level": 4,
+        "accessible": 6,
+        "total": 6,
+        "levels": {
+          "create": 4,
+          "get": 4,
+          "voucher": 4,
+          "update": 4,
+          "delete": 4,
+          "products": 4
+        }
+      },
+      "vouchers": {
+        "max_level": 4,
+        "accessible": 23,
+        "total": 23,
+        "levels": {
+          "create": 4,
+          "get": 4,
+          "folio": 4,
+          "update": 4,
+          "list": 4,
+          "approve": 4,
+          "start_transit": 4,
+          "close": 4,
+          "cancel": 4,
+          "confirm_entry": 4,
+          "validate_exit": 4,
+          "logs": 4,
+          "advanced": 4,
+          "company": 4,
+          "status": 4,
+          "validate_qr": 4,
+          "overview": 4,
+          "enums": 4,
+          "check_overdue": 4,
+          "generate_pdf": 4,
+          "generate_qr": 4,
+          "generation_info": 4,
+          "pdf_metadata": 4
+        }
+      }
+    },
+    "Manager": {
+      "admin": {
+        "max_level": 3,
+        "accessible": 8,
+        "total": 8,
+        "levels": {
+          "grant": 3,
+          "user_permissions": 3,
+          "user": 3,
+          "effective": 3,
+          "details": 3,
+          "extend": 3,
+          "cleanup_expired": 3,
+          "levels": 3
+        }
+      },
+      "branches": {
+        "max_level": 4,
+        "accessible": 12,
+        "total": 12,
+        "levels": {
+          "create": 4,
+          "get": 4,
+          "code": 4,
+          "update": 4,
+          "delete": 4,
+          "list": 4,
+          "by_company": 4,
+          "by_type": 4,
+          "by_location": 4,
+          "status": 4,
+          "overview": 4,
+          "values": 4
+        }
+      },
+      "companies": {
+        "max_level": 3,
+        "accessible": 18,
+        "total": 18,
+        "levels": {
+          "list": 3,
+          "get": 3,
+          "create": 3,
+          "update": 3,
+          "delete": 3,
+          "search": 3,
+          "view_statistics": 3,
+          "details": 3,
+          "by_tin": 3,
+          "by_country": 3,
+          "by_state": 3,
+          "advanced": 3,
+          "overview": 3,
+          "activate": 3,
+          "suspend": 3,
+          "deactivate": 3,
+          "statuses": 3,
+          "tax_systems": 3
+        }
+      },
+      "countries": {
+        "max_level": 3,
+        "accessible": 5,
+        "total": 5,
+        "levels": {
+          "read": 1,
+          "list": 3,
+          "get": 3,
+          "iso": 3,
+          "search": 3
+        }
+      },
+      "examples": {
+        "max_level": 3,
+        "accessible": 6,
+        "total": 6,
+        "levels": {
+          "create": 3,
+          "list": 3,
+          "get": 3,
+          "update": 3,
+          "delete": 3,
+          "with_user": 3
+        }
+      },
+      "health": {
+        "max_level": 3,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "list": 3
+        }
+      },
+      "individuals": {
+        "max_level": 3,
+        "accessible": 35,
+        "total": 35,
+        "levels": {
+          "list": 3,
+          "get": 3,
+          "create": 3,
+          "update": 3,
+          "delete": 3,
+          "create_with_user": 3,
+          "search": 3,
+          "verify": 3,
+          "view_statistics": 3,
+          "manage_skills": 3,
+          "view_skills": 3,
+          "with_user": 3,
+          "extended": 3,
+          "by_document": 3,
+          "by_phone": 3,
+          "by_status": 3,
+          "verified": 3,
+          "by_skill": 3,
+          "statistics": 3,
+          "age": 3,
+          "bmi": 3,
+          "validate": 3,
+          "document_types": 3,
+          "genders": 3,
+          "marital_status": 3,
+          "individual_status": 3,
+          "skills": 3,
+          "summary": 3,
+          "category": 3,
+          "expert": 3,
+          "level": 3,
+          "experience": 3,
+          "experts": 3,
+          "skill_categories": 3,
+          "skill_levels": 3
+        }
+      },
+      "login": {
+        "max_level": 3,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "create": 3
+        }
+      },
+      "products": {
+        "max_level": 4,
+        "accessible": 9,
+        "total": 9,
+        "levels": {
+          "create": 4,
+          "list": 4,
+          "paginated": 4,
+          "search": 4,
+          "top_used": 4,
+          "category": 4,
+          "get": 4,
+          "update": 4,
+          "delete": 4
+        }
+      },
+      "states": {
+        "max_level": 3,
+        "accessible": 5,
+        "total": 5,
+        "levels": {
+          "read": 1,
+          "list": 3,
+          "get": 3,
+          "by_country": 3,
+          "search": 3
+        }
+      },
+      "token": {
+        "max_level": 3,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "create": 3
+        }
+      },
+      "users": {
+        "max_level": 3,
+        "accessible": 11,
+        "total": 11,
+        "levels": {
+          "read": 3,
+          "create": 3,
+          "update": 3,
+          "delete": 3,
+          "list": 3,
+          "me": 3,
+          "roles": 3,
+          "get": 3,
+          "hard": 3,
+          "activate": 3,
+          "deactivate": 3
+        }
+      },
+      "voucher-details": {
+        "max_level": 4,
+        "accessible": 6,
+        "total": 6,
+        "levels": {
+          "create": 4,
+          "get": 4,
+          "voucher": 4,
+          "update": 4,
+          "delete": 4,
+          "products": 4
+        }
+      },
+      "vouchers": {
+        "max_level": 4,
+        "accessible": 23,
+        "total": 23,
+        "levels": {
+          "create": 4,
+          "get": 4,
+          "folio": 4,
+          "update": 4,
+          "list": 4,
+          "approve": 4,
+          "start_transit": 4,
+          "close": 4,
+          "cancel": 4,
+          "confirm_entry": 4,
+          "validate_exit": 4,
+          "logs": 4,
+          "advanced": 4,
+          "company": 4,
+          "status": 4,
+          "validate_qr": 4,
+          "overview": 4,
+          "enums": 4,
+          "check_overdue": 4,
+          "generate_pdf": 4,
+          "generate_qr": 4,
+          "generation_info": 4,
+          "pdf_metadata": 4
+        }
+      }
+    },
+    "Collaborator": {
+      "admin": {
+        "max_level": 2,
+        "accessible": 8,
+        "total": 8,
+        "levels": {
+          "grant": 2,
+          "user_permissions": 2,
+          "user": 2,
+          "effective": 2,
+          "details": 2,
+          "extend": 2,
+          "cleanup_expired": 2,
+          "levels": 2
+        }
+      },
+      "branches": {
+        "max_level": 1,
+        "accessible": 12,
+        "total": 12,
+        "levels": {
+          "create": 1,
+          "get": 1,
+          "code": 1,
+          "update": 1,
+          "delete": 1,
+          "list": 1,
+          "by_company": 1,
+          "by_type": 1,
+          "by_location": 1,
+          "status": 1,
+          "overview": 1,
+          "values": 1
+        }
+      },
+      "companies": {
+        "max_level": 3,
+        "accessible": 18,
+        "total": 18,
+        "levels": {
+          "list": 3,
+          "get": 3,
+          "create": 3,
+          "update": 3,
+          "delete": 2,
+          "search": 3,
+          "view_statistics": 1,
+          "details": 2,
+          "by_tin": 2,
+          "by_country": 2,
+          "by_state": 2,
+          "advanced": 2,
+          "overview": 2,
+          "activate": 2,
+          "suspend": 2,
+          "deactivate": 2,
+          "statuses": 2,
+          "tax_systems": 2
+        }
+      },
+      "countries": {
+        "max_level": 2,
+        "accessible": 5,
+        "total": 5,
+        "levels": {
+          "read": 1,
+          "list": 2,
+          "get": 2,
+          "iso": 2,
+          "search": 2
+        }
+      },
+      "examples": {
+        "max_level": 2,
+        "accessible": 6,
+        "total": 6,
+        "levels": {
+          "create": 2,
+          "list": 2,
+          "get": 2,
+          "update": 2,
+          "delete": 2,
+          "with_user": 2
+        }
+      },
+      "health": {
+        "max_level": 2,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "list": 2
+        }
+      },
+      "individuals": {
+        "max_level": 3,
+        "accessible": 35,
+        "total": 35,
+        "levels": {
+          "list": 3,
+          "get": 3,
+          "create": 3,
+          "update": 3,
+          "delete": 2,
+          "create_with_user": 2,
+          "search": 3,
+          "verify": 2,
+          "view_statistics": 1,
+          "manage_skills": 3,
+          "view_skills": 3,
+          "with_user": 2,
+          "extended": 2,
+          "by_document": 2,
+          "by_phone": 2,
+          "by_status": 2,
+          "verified": 2,
+          "by_skill": 2,
+          "statistics": 2,
+          "age": 2,
+          "bmi": 2,
+          "validate": 2,
+          "document_types": 2,
+          "genders": 2,
+          "marital_status": 2,
+          "individual_status": 2,
+          "skills": 2,
+          "summary": 2,
+          "category": 2,
+          "expert": 2,
+          "level": 2,
+          "experience": 2,
+          "experts": 2,
+          "skill_categories": 2,
+          "skill_levels": 2
+        }
+      },
+      "login": {
+        "max_level": 2,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "create": 2
+        }
+      },
+      "products": {
+        "max_level": 3,
+        "accessible": 9,
+        "total": 9,
+        "levels": {
+          "create": 3,
+          "list": 3,
+          "paginated": 3,
+          "search": 3,
+          "top_used": 3,
+          "category": 3,
+          "get": 3,
+          "update": 3,
+          "delete": 3
+        }
+      },
+      "states": {
+        "max_level": 2,
+        "accessible": 5,
+        "total": 5,
+        "levels": {
+          "read": 1,
+          "list": 2,
+          "get": 2,
+          "by_country": 2,
+          "search": 2
+        }
+      },
+      "token": {
+        "max_level": 2,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "create": 2
+        }
+      },
+      "users": {
+        "max_level": 2,
+        "accessible": 11,
+        "total": 11,
+        "levels": {
+          "read": 1,
+          "create": 2,
+          "update": 2,
+          "delete": 2,
+          "list": 2,
+          "me": 2,
+          "roles": 2,
+          "get": 2,
+          "hard": 2,
+          "activate": 2,
+          "deactivate": 2
+        }
+      },
+      "voucher-details": {
+        "max_level": 3,
+        "accessible": 6,
+        "total": 6,
+        "levels": {
+          "create": 3,
+          "get": 3,
+          "voucher": 3,
+          "update": 3,
+          "delete": 3,
+          "products": 3
+        }
+      },
+      "vouchers": {
+        "max_level": 3,
+        "accessible": 23,
+        "total": 23,
+        "levels": {
+          "create": 3,
+          "get": 3,
+          "folio": 3,
+          "update": 3,
+          "list": 3,
+          "approve": 3,
+          "start_transit": 3,
+          "close": 3,
+          "cancel": 3,
+          "confirm_entry": 3,
+          "validate_exit": 3,
+          "logs": 3,
+          "advanced": 3,
+          "company": 3,
+          "status": 3,
+          "validate_qr": 3,
+          "overview": 3,
+          "enums": 3,
+          "check_overdue": 3,
+          "generate_pdf": 3,
+          "generate_qr": 3,
+          "generation_info": 3,
+          "pdf_metadata": 3
+        }
+      }
+    },
+    "Reader": {
+      "admin": {
+        "max_level": 1,
+        "accessible": 8,
+        "total": 8,
+        "levels": {
+          "grant": 1,
+          "user_permissions": 1,
+          "user": 1,
+          "effective": 1,
+          "details": 1,
+          "extend": 1,
+          "cleanup_expired": 1,
+          "levels": 1
+        }
+      },
+      "branches": {
+        "max_level": 1,
+        "accessible": 12,
+        "total": 12,
+        "levels": {
+          "create": 1,
+          "get": 1,
+          "code": 1,
+          "update": 1,
+          "delete": 1,
+          "list": 1,
+          "by_company": 1,
+          "by_type": 1,
+          "by_location": 1,
+          "status": 1,
+          "overview": 1,
+          "values": 1
+        }
+      },
+      "companies": {
+        "max_level": 1,
+        "accessible": 18,
+        "total": 18,
+        "levels": {
+          "list": 1,
+          "get": 1,
+          "create": 1,
+          "update": 1,
+          "delete": 1,
+          "search": 1,
+          "view_statistics": 1,
+          "details": 1,
+          "by_tin": 1,
+          "by_country": 1,
+          "by_state": 1,
+          "advanced": 1,
+          "overview": 1,
+          "activate": 1,
+          "suspend": 1,
+          "deactivate": 1,
+          "statuses": 1,
+          "tax_systems": 1
+        }
+      },
+      "countries": {
+        "max_level": 1,
+        "accessible": 5,
+        "total": 5,
+        "levels": {
+          "read": 1,
+          "list": 1,
+          "get": 1,
+          "iso": 1,
+          "search": 1
+        }
+      },
+      "examples": {
+        "max_level": 1,
+        "accessible": 6,
+        "total": 6,
+        "levels": {
+          "create": 1,
+          "list": 1,
+          "get": 1,
+          "update": 1,
+          "delete": 1,
+          "with_user": 1
+        }
+      },
+      "health": {
+        "max_level": 1,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "list": 1
+        }
+      },
+      "individuals": {
+        "max_level": 1,
+        "accessible": 35,
+        "total": 35,
+        "levels": {
+          "list": 1,
+          "get": 1,
+          "create": 1,
+          "update": 1,
+          "delete": 1,
+          "create_with_user": 1,
+          "search": 1,
+          "verify": 1,
+          "view_statistics": 1,
+          "manage_skills": 1,
+          "view_skills": 1,
+          "with_user": 1,
+          "extended": 1,
+          "by_document": 1,
+          "by_phone": 1,
+          "by_status": 1,
+          "verified": 1,
+          "by_skill": 1,
+          "statistics": 1,
+          "age": 1,
+          "bmi": 1,
+          "validate": 1,
+          "document_types": 1,
+          "genders": 1,
+          "marital_status": 1,
+          "individual_status": 1,
+          "skills": 1,
+          "summary": 1,
+          "category": 1,
+          "expert": 1,
+          "level": 1,
+          "experience": 1,
+          "experts": 1,
+          "skill_categories": 1,
+          "skill_levels": 1
+        }
+      },
+      "login": {
+        "max_level": 1,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "create": 1
+        }
+      },
+      "products": {
+        "max_level": 3,
+        "accessible": 9,
+        "total": 9,
+        "levels": {
+          "create": 3,
+          "list": 3,
+          "paginated": 3,
+          "search": 3,
+          "top_used": 3,
+          "category": 3,
+          "get": 3,
+          "update": 3,
+          "delete": 3
+        }
+      },
+      "states": {
+        "max_level": 1,
+        "accessible": 5,
+        "total": 5,
+        "levels": {
+          "read": 1,
+          "list": 1,
+          "get": 1,
+          "by_country": 1,
+          "search": 1
+        }
+      },
+      "token": {
+        "max_level": 1,
+        "accessible": 1,
+        "total": 1,
+        "levels": {
+          "create": 1
+        }
+      },
+      "users": {
+        "max_level": 1,
+        "accessible": 11,
+        "total": 11,
+        "levels": {
+          "read": 1,
+          "create": 1,
+          "update": 1,
+          "delete": 1,
+          "list": 1,
+          "me": 1,
+          "roles": 1,
+          "get": 1,
+          "hard": 1,
+          "activate": 1,
+          "deactivate": 1
+        }
+      },
+      "voucher-details": {
+        "max_level": 3,
+        "accessible": 6,
+        "total": 6,
+        "levels": {
+          "create": 3,
+          "get": 3,
+          "voucher": 3,
+          "update": 3,
+          "delete": 3,
+          "products": 3
+        }
+      },
+      "vouchers": {
+        "max_level": 3,
+        "accessible": 23,
+        "total": 23,
+        "levels": {
+          "create": 3,
+          "get": 3,
+          "folio": 3,
+          "update": 3,
+          "list": 3,
+          "approve": 3,
+          "start_transit": 3,
+          "close": 3,
+          "cancel": 3,
+          "confirm_entry": 3,
+          "validate_exit": 3,
+          "logs": 3,
+          "advanced": 3,
+          "company": 3,
+          "status": 3,
+          "validate_qr": 3,
+          "overview": 3,
+          "enums": 3,
+          "check_overdue": 3,
+          "generate_pdf": 3,
+          "generate_qr": 3,
+          "generation_info": 3,
+          "pdf_metadata": 3
+        }
+      }
+    },
+    "Guest": {
+      "admin": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 8,
+        "levels": {
+          "grant": 0,
+          "user_permissions": 0,
+          "user": 0,
+          "effective": 0,
+          "details": 0,
+          "extend": 0,
+          "cleanup_expired": 0,
+          "levels": 0
+        }
+      },
+      "branches": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 12,
+        "levels": {
+          "create": 0,
+          "get": 0,
+          "code": 0,
+          "update": 0,
+          "delete": 0,
+          "list": 0,
+          "by_company": 0,
+          "by_type": 0,
+          "by_location": 0,
+          "status": 0,
+          "overview": 0,
+          "values": 0
+        }
+      },
+      "companies": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 18,
+        "levels": {
+          "list": 0,
+          "get": 0,
+          "create": 0,
+          "update": 0,
+          "delete": 0,
+          "search": 0,
+          "view_statistics": 0,
+          "details": 0,
+          "by_tin": 0,
+          "by_country": 0,
+          "by_state": 0,
+          "advanced": 0,
+          "overview": 0,
+          "activate": 0,
+          "suspend": 0,
+          "deactivate": 0,
+          "statuses": 0,
+          "tax_systems": 0
+        }
+      },
+      "countries": {
+        "max_level": 1,
+        "accessible": 1,
+        "total": 5,
+        "levels": {
+          "read": 1,
+          "list": 0,
+          "get": 0,
+          "iso": 0,
+          "search": 0
+        }
+      },
+      "examples": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 6,
+        "levels": {
+          "create": 0,
+          "list": 0,
+          "get": 0,
+          "update": 0,
+          "delete": 0,
+          "with_user": 0
+        }
+      },
+      "health": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 1,
+        "levels": {
+          "list": 0
+        }
+      },
+      "individuals": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 35,
+        "levels": {
+          "list": 0,
+          "get": 0,
+          "create": 0,
+          "update": 0,
+          "delete": 0,
+          "create_with_user": 0,
+          "search": 0,
+          "verify": 0,
+          "view_statistics": 0,
+          "manage_skills": 0,
+          "view_skills": 0,
+          "with_user": 0,
+          "extended": 0,
+          "by_document": 0,
+          "by_phone": 0,
+          "by_status": 0,
+          "verified": 0,
+          "by_skill": 0,
+          "statistics": 0,
+          "age": 0,
+          "bmi": 0,
+          "validate": 0,
+          "document_types": 0,
+          "genders": 0,
+          "marital_status": 0,
+          "individual_status": 0,
+          "skills": 0,
+          "summary": 0,
+          "category": 0,
+          "expert": 0,
+          "level": 0,
+          "experience": 0,
+          "experts": 0,
+          "skill_categories": 0,
+          "skill_levels": 0
+        }
+      },
+      "login": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 1,
+        "levels": {
+          "create": 0
+        }
+      },
+      "products": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 9,
+        "levels": {
+          "create": 0,
+          "list": 0,
+          "paginated": 0,
+          "search": 0,
+          "top_used": 0,
+          "category": 0,
+          "get": 0,
+          "update": 0,
+          "delete": 0
+        }
+      },
+      "states": {
+        "max_level": 1,
+        "accessible": 1,
+        "total": 5,
+        "levels": {
+          "read": 1,
+          "list": 0,
+          "get": 0,
+          "by_country": 0,
+          "search": 0
+        }
+      },
+      "token": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 1,
+        "levels": {
+          "create": 0
+        }
+      },
+      "users": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 11,
+        "levels": {
+          "read": 0,
+          "create": 0,
+          "update": 0,
+          "delete": 0,
+          "list": 0,
+          "me": 0,
+          "roles": 0,
+          "get": 0,
+          "hard": 0,
+          "activate": 0,
+          "deactivate": 0
+        }
+      },
+      "voucher-details": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 6,
+        "levels": {
+          "create": 0,
+          "get": 0,
+          "voucher": 0,
+          "update": 0,
+          "delete": 0,
+          "products": 0
+        }
+      },
+      "vouchers": {
+        "max_level": 0,
+        "accessible": 0,
+        "total": 23,
+        "levels": {
+          "create": 0,
+          "get": 0,
+          "folio": 0,
+          "update": 0,
+          "list": 0,
+          "approve": 0,
+          "start_transit": 0,
+          "close": 0,
+          "cancel": 0,
+          "confirm_entry": 0,
+          "validate_exit": 0,
+          "logs": 0,
+          "advanced": 0,
+          "company": 0,
+          "status": 0,
+          "validate_qr": 0,
+          "overview": 0,
+          "enums": 0,
+          "check_overdue": 0,
+          "generate_pdf": 0,
+          "generate_qr": 0,
+          "generation_info": 0,
+          "pdf_metadata": 0
+        }
+      }
+    }
+  }
+}
