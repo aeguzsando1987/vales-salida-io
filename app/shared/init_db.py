@@ -267,8 +267,8 @@ def initialize_permissions(db: Session):
             'overview': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
             'enums': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
             # Logs y auditoría
-            'logs': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 0, 'Guest': 0, 'Checker': 0},
-            'view_logs': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'logs': {'Admin': 4, 'Manager': 3, 'Collaborator': 2, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'view_logs': {'Admin': 4, 'Manager': 3, 'Collaborator': 2, 'Reader': 0, 'Guest': 0, 'Checker': 0},
             # PDF y documentos
             'generate_pdf': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 1, 'Guest': 0, 'Checker': 0},
             'download_pdf': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 0},
