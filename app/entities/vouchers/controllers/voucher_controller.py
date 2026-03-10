@@ -71,7 +71,8 @@ class VoucherController:
     def create(
         self,
         voucher_data: VoucherCreate,
-        current_user_id: int
+        current_user_id: int,
+        role: int
     ) -> VoucherResponse:
         """
         Crea un nuevo voucher.
@@ -82,6 +83,7 @@ class VoucherController:
         Args:
             voucher_data: Datos del voucher
             current_user_id: ID del usuario autenticado
+            role: Rol del usuario (1-6)
 
         Returns:
             Voucher creado
@@ -92,7 +94,7 @@ class VoucherController:
             HTTPException 500: Si error interno
         """
         try:
-            voucher = self.service.create_voucher(voucher_data, current_user_id)
+            voucher = self.service.create_voucher(voucher_data, current_user_id, role)
             return VoucherResponse.model_validate(voucher)
 
         except EntityNotFoundError as e:
@@ -115,7 +117,9 @@ class VoucherController:
         self,
         voucher_id: int,
         detailed: bool = False,
-        include_details: bool = False
+        include_details: bool = False,
+        user_id: int = None,
+        user_role: int = None
     ) -> VoucherResponse | VoucherDetailedResponse | VoucherWithDetailsResponse:
         """
         Obtiene un voucher por ID.
@@ -135,6 +139,12 @@ class VoucherController:
         try:
             # Obtener voucher del servicio (con o sin details cargados)
             voucher = self.service.get_voucher(voucher_id, include_details=include_details)
+
+            # Scoping por empresa: Admin(1) y Vigilante(6) ven todo; otros roles solo sus empresas
+            if user_id and user_role and user_role not in [1, 6]:
+                accessible_ids = self.service._get_user_company_ids(user_id, user_role)
+                if accessible_ids and voucher.company_id not in accessible_ids:
+                    raise EntityNotFoundError("Voucher", voucher_id)
 
             # Si se solicitan las líneas de detalle
             if include_details:
@@ -333,7 +343,8 @@ class VoucherController:
         self,
         voucher_id: int,
         approve_data: VoucherApprove,
-        current_user_id: int
+        current_user_id: int,
+        role: int
     ) -> VoucherResponse:
         """
         Aprueba un voucher: PENDING → APPROVED
@@ -342,6 +353,7 @@ class VoucherController:
             voucher_id: ID del voucher
             approve_data: Datos de aprobación (quién aprueba)
             current_user_id: Usuario autenticado
+            role: Rol del usuario (1-6)
 
         Returns:
             Voucher aprobado
@@ -355,7 +367,8 @@ class VoucherController:
             voucher = self.service.approve_voucher(
                 voucher_id,
                 approve_data,
-                current_user_id
+                current_user_id,
+                role
             )
             return VoucherResponse.model_validate(voucher)
 
@@ -467,7 +480,8 @@ class VoucherController:
         self,
         voucher_id: int,
         cancel_data: VoucherCancel,
-        current_user_id: int
+        current_user_id: int,
+        role: int
     ) -> VoucherResponse:
         """
         Cancela un voucher: → CANCELLED
@@ -478,6 +492,7 @@ class VoucherController:
             voucher_id: ID del voucher
             cancel_data: Razón de cancelación
             current_user_id: Usuario que cancela
+            role: Rol del usuario (1-6)
 
         Returns:
             Voucher cancelado
@@ -491,7 +506,8 @@ class VoucherController:
             voucher = self.service.cancel_voucher(
                 voucher_id,
                 cancel_data,
-                current_user_id
+                current_user_id,
+                role
             )
             return VoucherResponse.model_validate(voucher)
 
@@ -554,7 +570,8 @@ class VoucherController:
                 received_by_id=entry_data.received_by_id,
                 line_validations=line_validations,
                 general_observations=entry_data.general_observations,
-                confirming_user_id=current_user.id
+                confirming_user_id=current_user.id,
+                role=current_user.role
             )
 
             # Retornar voucher actualizado
@@ -581,7 +598,8 @@ class VoucherController:
         voucher_id: int,
         validation_data: ValidateExitRequest,
         qr_token: Optional[str],
-        current_user_id: int
+        current_user_id: int,
+        role: int
     ) -> VoucherDetailedResponse:
         """
         Valida salida de material LINEA POR LINEA mediante QR (crea out_log automaticamente).
@@ -594,6 +612,7 @@ class VoucherController:
             validation_data: ValidateExitRequest con line_validations y observaciones
             qr_token: Token QR (opcional)
             current_user_id: Usuario que valida
+            role: Rol del usuario (1-6)
 
         Returns:
             Voucher actualizado con out_log incluido
@@ -619,7 +638,8 @@ class VoucherController:
                 scanned_by_id=validation_data.scanned_by_id,
                 line_validations=line_validations,
                 general_observations=validation_data.general_observations,
-                validating_user_id=current_user_id
+                validating_user_id=current_user_id,
+                role=role
             )
 
             # Retornar voucher actualizado
@@ -758,10 +778,12 @@ class VoucherController:
         voucher_type: Optional[VoucherTypeEnum] = None,
         from_date: Optional[date] = None,
         to_date: Optional[date] = None,
-        limit: int = 50
+        limit: int = 50,
+        user_id: Optional[int] = None,
+        role: Optional[int] = None
     ) -> VoucherSearchResponse:
         """
-        Búsqueda avanzada de vouchers.
+        Búsqueda avanzada de vouchers con scoping multi-empresa.
 
         Args:
             search_term: Término de búsqueda (folio, notas)
@@ -771,6 +793,8 @@ class VoucherController:
             from_date: Fecha desde
             to_date: Fecha hasta
             limit: Máximo de resultados
+            user_id: ID del usuario (para scoping)
+            role: Rol del usuario (para scoping)
 
         Returns:
             Resultados de búsqueda
@@ -786,7 +810,9 @@ class VoucherController:
                 voucher_type=voucher_type,
                 from_date=from_date,
                 to_date=to_date,
-                limit=limit
+                limit=limit,
+                user_id=user_id,
+                role=role
             )
 
             # Retornar lista directa de vouchers
@@ -802,7 +828,9 @@ class VoucherController:
         self,
         company_id: int,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        user_id: int = None,
+        user_role: int = None
     ) -> list[VoucherResponse]:
         """
         Lista vouchers de una empresa.
@@ -819,6 +847,14 @@ class VoucherController:
             HTTPException 500: Si error interno
         """
         try:
+            # Scoping por empresa: Admin(1) y Vigilante(6) ven todo; otros verifican acceso
+            if user_id and user_role and user_role not in [1, 6]:
+                accessible_ids = self.service._get_user_company_ids(user_id, user_role)
+                if not accessible_ids or company_id not in accessible_ids:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="No tiene permiso para consultar vales de esta empresa"
+                    )
             vouchers = self.service.find_by_company(company_id, skip, limit)
             return [VoucherResponse.model_validate(v) for v in vouchers]
 
@@ -909,13 +945,17 @@ class VoucherController:
 
     def get_statistics(
         self,
-        company_id: Optional[int] = None
+        company_id: Optional[int] = None,
+        user_id: Optional[int] = None,
+        role: Optional[int] = None
     ) -> VoucherStatistics:
         """
-        Obtiene estadísticas de vouchers.
+        Obtiene estadísticas de vouchers con scoping multi-empresa.
 
         Args:
             company_id: Filtrar por empresa (opcional)
+            user_id: ID del usuario (para scoping)
+            role: Rol del usuario (para scoping)
 
         Returns:
             Estadísticas completas
@@ -924,7 +964,7 @@ class VoucherController:
             HTTPException 500: Si error interno
         """
         try:
-            stats = self.service.get_statistics(company_id)
+            stats = self.service.get_statistics(company_id, user_id, role)
             return VoucherStatistics(**stats)
 
         except Exception as e:

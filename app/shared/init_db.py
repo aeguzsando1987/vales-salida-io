@@ -17,6 +17,7 @@ from app.entities.states.models.state import State
 from app.shared.models.permission import Permission
 from app.shared.models.permission_template import PermissionTemplate
 from app.shared.models.permission_template_item import PermissionTemplateItem
+from app.shared.models.system_config import SystemConfig  # noqa: F401 – ensures table is created
 from app.shared.data.permissions_seed_data import (
     BASE_PERMISSIONS,
     PERMISSION_TEMPLATES,
@@ -611,6 +612,84 @@ def initialize_test_data(db: Session):
         print(f"\n  [OK] {products_created} productos creados")
     else:
         print(f"\n  [OK] Todos los productos de prueba ya existían")
+
+    # ==================== 5. INDIVIDUALS CON EMPRESAS ====================
+    print("\n5. Creando Individuals con asignación de empresas...")
+
+    from app.entities.individuals.models.individual import Individual
+
+    # Buscar usuarios creados (incluyendo admin)
+    admin_user = db.query(User).filter(User.role == 1).first()  # Admin (role=1)
+    manager_user = db.query(User).filter(User.email == "manager@test.com").first()
+    supervisor_user = db.query(User).filter(User.email == "supervisor@test.com").first()
+    collaborator_user = db.query(User).filter(User.email == "collaborator@test.com").first()
+
+    test_individuals = [
+        {
+            "user_id": admin_user.id if admin_user else None,
+            "first_name": "Administrador",
+            "last_name": "Sistema",
+            "email": admin_user.email if admin_user else "admin@test.com",
+            "phone_numbers": ["+52 33 0000 0000"],
+            "company_id": company_id,  # Empresa principal
+            "allowed_company_ids": []   # Admin tiene acceso a todas (bypass en código)
+        },
+        {
+            "user_id": manager_user.id if manager_user else None,
+            "first_name": "Juan",
+            "last_name": "Manager Pérez",
+            "email": "manager@test.com",
+            "phone_numbers": ["+52 33 1111 2222"],
+            "company_id": company_id,  # Empresa principal
+            "allowed_company_ids": []   # Solo una empresa por ahora
+        },
+        {
+            "user_id": supervisor_user.id if supervisor_user else None,
+            "first_name": "María",
+            "last_name": "Supervisor López",
+            "email": "supervisor@test.com",
+            "phone_numbers": ["+52 33 3333 4444"],
+            "company_id": company_id,
+            "allowed_company_ids": []
+        },
+        {
+            "user_id": collaborator_user.id if collaborator_user else None,
+            "first_name": "Carlos",
+            "last_name": "Collaborator Gómez",
+            "email": "collaborator@test.com",
+            "phone_numbers": ["+52 33 5555 6666"],
+            "company_id": company_id,
+            "allowed_company_ids": []
+        }
+    ]
+
+    individuals_created = 0
+    for individual_data in test_individuals:
+        if individual_data["user_id"]:
+            # Verificar si ya existe Individual para este usuario
+            existing = db.query(Individual).filter(
+                Individual.user_id == individual_data["user_id"]
+            ).first()
+
+            if not existing:
+                new_individual = Individual(**individual_data)
+                db.add(new_individual)
+                individuals_created += 1
+                print(f"  [+] Individual creado: {individual_data['first_name']} {individual_data['last_name']} (company_id={company_id})")
+            else:
+                # Actualizar company_id si no lo tiene
+                if not existing.company_id:
+                    existing.company_id = company_id
+                    individuals_created += 1
+                    print(f"  [+] Individual actualizado: {existing.first_name} {existing.last_name} (company_id={company_id})")
+                else:
+                    print(f"  [·] Individual ya existe con empresa: {existing.first_name} {existing.last_name}")
+
+    if individuals_created > 0:
+        db.commit()
+        print(f"\n  [OK] {individuals_created} individuals creados/actualizados")
+    else:
+        print(f"\n  [OK] Todos los individuals de prueba ya existían con empresas")
 
     print("\n" + "="*65)
     print("DATOS DE PRUEBA INICIALIZADOS EXITOSAMENTE")

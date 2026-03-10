@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from sqlalchemy.orm import Session
 from database import get_db, create_tables, User, ExampleEntity
+from app.entities.individuals.models.individual import Individual
 # COMENTADO TEMPORALMENTE: Conflicto con nuevo modelo Individual
 # from modules.persons.models import Person
 from auth import hash_password, verify_password, create_access_token, verify_token, get_current_user_id, get_current_user, require_admin, require_manager_or_admin, require_collaborator_or_better, require_any_user
@@ -27,6 +28,7 @@ from app.entities.products.routers.product_router import router as product_route
 from app.entities.vouchers.routers.voucher_router import router as voucher_router
 from app.entities.voucher_details.routers.voucher_detail_router import router as voucher_detail_router
 from app.shared.routers.admin_permissions_router import router as admin_permissions_router
+from app.shared.routers.email_config_router import router as email_config_router
 
 # Crear aplicación FastAPI con configuración de seguridad para Swagger
 app = FastAPI(
@@ -44,6 +46,7 @@ app = FastAPI(
         {"name": "Products", "description": "Gestión de productos (cache opcional)"},
         {"name": "Voucher Details", "description": "Gestión de líneas de detalle de vales (artículos)"},
         {"name": "Admin - User Permissions", "description": "Gestión de permisos a nivel de usuario (Fase 3)"},
+        {"name": "Admin - Email Config", "description": "Configuración de correo electrónico SMTP"},
         {"name": "health", "description": "Estado del sistema"}
     ]
 )
@@ -52,14 +55,16 @@ app = FastAPI(
 # IMPORTANTE: En desarrollo permitimos múltiples orígenes
 # En producción, especificar solo los dominios necesarios
 allowed_origins = [
-    "http://localhost:5500",  # Vanilla JS (Live Server)
+    "http://localhost:5500",   # Vanilla JS (Live Server)
     "http://127.0.0.1:5500",
-    "http://localhost:3000",  # React
+    "http://localhost:3000",   # React / Next.js nativo
     "http://127.0.0.1:3000",
-    "http://localhost:3001",  # Next.js webapp (puerto alternativo)
+    "http://localhost:3001",
     "http://127.0.0.1:3001",
-    "http://localhost:3002",  # Next.js webapp
+    "http://localhost:3002",
     "http://127.0.0.1:3002",
+    "https://localhost:9443",  # Docker nginx HTTPS
+    "https://127.0.0.1:9443",
 ]
 
 # Agregar orígenes adicionales desde variable de entorno (útil para desarrollo en red)
@@ -128,6 +133,8 @@ app.include_router(voucher_router)
 app.include_router(voucher_detail_router)
 # Incluir router de administración de permisos (Phase 3)
 app.include_router(admin_permissions_router)
+# Incluir router de configuración de correo
+app.include_router(email_config_router)
 
 # Modelos Pydantic para requests/responses
 class UserLogin(BaseModel):
@@ -229,7 +236,11 @@ def get_current_user(db: Session = Depends(get_db), current_user_id: int = Depen
     user = db.query(User).filter(User.id == current_user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return {
+
+    # Buscar Individual asociado para obtener empresas
+    individual = db.query(Individual).filter(Individual.user_id == user.id, Individual.is_deleted == False).first()
+
+    response = {
         "id": user.id,
         "email": user.email,
         "name": user.name,
@@ -237,8 +248,19 @@ def get_current_user(db: Session = Depends(get_db), current_user_id: int = Depen
         "is_active": user.is_active,
         "is_deleted": user.is_deleted,
         "created_at": user.created_at,
-        "updated_at": user.updated_at
+        "updated_at": user.updated_at,
+        "company_id": None,
+        "allowed_company_ids": [],
+        "accessible_company_ids": []
     }
+
+    # Agregar información de empresas si existe Individual
+    if individual:
+        response["company_id"] = individual.company_id
+        response["allowed_company_ids"] = individual.allowed_company_ids or []
+        response["accessible_company_ids"] = individual.accessible_company_ids  # Propiedad computada
+
+    return response
 
 @app.get("/users/roles", tags=["users"], summary="Obtener lista de roles disponibles")
 def get_user_roles():
@@ -494,7 +516,7 @@ def startup_event():
 
     # Crear usuario admin por defecto con valores de .env
     db = next(get_db())
-    admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@bapta.com.mx")
+    admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@bapta.com")
     admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "root")
 
     admin = db.query(User).filter(User.email == admin_email).first()

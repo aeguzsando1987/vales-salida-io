@@ -178,6 +178,16 @@ log_level = "DEBUG"
 reload = true
 workers = 1
 
+[email]
+# Configuración base de correo (valores por defecto)
+# Los secretos (username, password) deben ir en .env
+# También se pueden configurar desde el panel Admin → Configuración de Correo
+enabled = false
+server = "smtp.gmail.com"
+port = 587
+from_name = "Sistema de Vales GPA"
+use_tls = true
+
 [environments.production]
 # Configuración específica para producción
 debug = false

@@ -13,7 +13,10 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from datetime import datetime, date
 import hashlib
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from app.entities.vouchers.models.voucher import Voucher, VoucherStatusEnum, VoucherTypeEnum
 from app.entities.vouchers.models.entry_log import EntryLog, EntryStatusEnum
@@ -45,6 +48,66 @@ class VoucherService:
     def __init__(self, db: Session):
         self.db = db
         self.repository = VoucherRepository(db)
+
+    # ==================== HELPERS DE SCOPING MULTI-EMPRESA ====================
+
+    def _get_user_company_ids(self, user_id: int, role: int) -> List[int]:
+        """
+        Obtiene los IDs de empresas a las que el usuario tiene acceso.
+
+        Args:
+            user_id: ID del usuario
+            role: Rol del usuario (1-6)
+
+        Returns:
+            Lista de company_ids accesibles. Admin (role=1) retorna lista vacía (acceso total).
+        """
+        # Admin tiene acceso a todas las empresas
+        if role == 1:
+            return []  # Lista vacía = acceso sin restricción
+
+        # Buscar Individual del usuario
+        individual = self.db.query(Individual).filter(
+            Individual.user_id == user_id,
+            Individual.is_deleted == False
+        ).first()
+
+        if not individual:
+            # Si no tiene Individual, no tiene acceso a empresas
+            return []
+
+        # Retornar accessible_company_ids (propiedad computada)
+        return individual.accessible_company_ids
+
+    def _validate_company_access(self, user_id: int, role: int, company_id: int) -> None:
+        """
+        Valida si el usuario tiene acceso a la empresa especificada.
+
+        Args:
+            user_id: ID del usuario
+            role: Rol del usuario
+            company_id: ID de la empresa a validar
+
+        Raises:
+            BusinessRuleError: Si el usuario no tiene acceso a la empresa
+        """
+        # Admin y Checker tienen acceso a cualquier empresa
+        if role in [1, 6]:
+            return
+
+        accessible_ids = self._get_user_company_ids(user_id, role)
+
+        # Si accessible_ids está vacío y no es Admin/Checker, no tiene acceso
+        if not accessible_ids:
+            raise BusinessRuleError(
+                f"Usuario no tiene empresas asignadas. Contacte al administrador."
+            )
+
+        # Validar que la empresa esté en la lista de accesibles
+        if company_id not in accessible_ids:
+            raise BusinessRuleError(
+                f"No tiene permiso para operar vouchers de la empresa ID {company_id}"
+            )
 
     # ==================== GENERACIÓN DE FOLIOS ====================
 
@@ -264,7 +327,8 @@ class VoucherService:
         received_by_id: int,
         line_validations: List[dict],
         general_observations: Optional[str] = None,
-        confirming_user_id: int = 1
+        confirming_user_id: int = 1,
+        role: int = 1
     ) -> Voucher:
         """
         Confirma recepcion fisica de material LINEA POR LINEA (logica ESTRICTA)
@@ -288,6 +352,7 @@ class VoucherService:
             line_validations: Lista de validaciones [{"detail_id": 1, "ok": true, "notes": "..."}]
             general_observations: Observaciones generales
             confirming_user_id: Usuario que confirma
+            role: Rol del usuario (1-6)
 
         Returns:
             Voucher actualizado con validaciones linea por linea
@@ -300,6 +365,9 @@ class VoucherService:
         from app.entities.voucher_details.models.voucher_detail import VoucherDetail
 
         voucher = self.get_voucher(voucher_id, include_details=True)
+
+        # Validar acceso a la empresa (scoping multi-empresa)
+        self._validate_company_access(confirming_user_id, role, voucher.company_id)
 
         # Validar estados validos
         valid_statuses = [
@@ -410,7 +478,8 @@ class VoucherService:
         scanned_by_id: int,
         line_validations: List[dict],
         general_observations: Optional[str] = None,
-        validating_user_id: int = 1
+        validating_user_id: int = 1,
+        role: int = 1
     ) -> Voucher:
         """
         Valida salida de material LINEA POR LINEA (logica FLEXIBLE)
@@ -434,6 +503,7 @@ class VoucherService:
             line_validations: Lista de validaciones [{"detail_id": 1, "ok": true, "notes": "..."}]
             general_observations: Observaciones generales
             validating_user_id: Usuario que valida
+            role: Rol del usuario (1-6)
 
         Returns:
             Voucher actualizado con validaciones linea por linea
@@ -446,6 +516,9 @@ class VoucherService:
         from app.entities.voucher_details.models.voucher_detail import VoucherDetail
 
         voucher = self.get_voucher(voucher_id, include_details=True)
+
+        # Validar acceso a la empresa (scoping multi-empresa)
+        self._validate_company_access(validating_user_id, role, voucher.company_id)
 
         # Validar estado
         if voucher.status != VoucherStatusEnum.APPROVED:
@@ -558,7 +631,8 @@ class VoucherService:
     def create_voucher(
         self,
         voucher_data: VoucherCreate,
-        created_by_user_id: int
+        created_by_user_id: int,
+        role: int
     ) -> Voucher:
         """
         Crea un voucher nuevo
@@ -571,6 +645,7 @@ class VoucherService:
         Args:
             voucher_data: Datos del voucher
             created_by_user_id: Usuario que crea
+            role: Rol del usuario (1-6)
 
         Returns:
             Voucher creado
@@ -581,6 +656,9 @@ class VoucherService:
         ).first()
         if not company:
             raise EntityNotFoundError("Company", voucher_data.company_id)
+
+        # Validar acceso a la empresa (scoping multi-empresa)
+        self._validate_company_access(created_by_user_id, role, voucher_data.company_id)
 
         # Validar origin_branch si existe
         if voucher_data.origin_branch_id:
@@ -653,6 +731,15 @@ class VoucherService:
         new_voucher.qr_token = qr_token
         self.db.commit()
         self.db.refresh(new_voucher)
+
+        # Enviar correo en background (no bloquea la respuesta al usuario)
+        try:
+            from app.shared.tasks.voucher_tasks import send_voucher_email_task
+            send_voucher_email_task.delay(new_voucher.id)
+        except Exception as e:
+            # El error de email no debe bloquear la creación del vale
+            import logging
+            logging.getLogger(__name__).warning(f"[VOUCHER] No se pudo encolar email task: {e}")
 
         return new_voucher
 
@@ -788,9 +875,19 @@ class VoucherService:
         if voucher_type:
             query = query.filter(Voucher.voucher_type == voucher_type)
 
-        # Filtro para role 4 (Reader): solo sus propios vales
-        if current_user_role == 4 and current_user_id:
-            query = query.filter(Voucher.created_by == current_user_id)
+        # Scoping multi-empresa y filtro por rol
+        if current_user_role is not None and current_user_id is not None:
+            if current_user_role == 4:
+                # Reader: solo sus propios vales
+                query = query.filter(Voucher.created_by == current_user_id)
+            elif current_user_role not in [1, 6]:
+                # Roles 2,3,5: filtrar por empresas accesibles
+                accessible_ids = self._get_user_company_ids(current_user_id, current_user_role)
+                if accessible_ids:
+                    query = query.filter(Voucher.company_id.in_(accessible_ids))
+                else:
+                    # Sin empresas asignadas → no ver nada
+                    return []
 
         # Aplicar ordenamiento
         if order_by:
@@ -846,9 +943,16 @@ class VoucherService:
         if voucher_type:
             query = query.filter(Voucher.voucher_type == voucher_type)
 
-        # Filtro para role 4 (Reader): solo sus propios vales
-        if current_user_role == 4 and current_user_id:
-            query = query.filter(Voucher.created_by == current_user_id)
+        # Scoping multi-empresa y filtro por rol
+        if current_user_role is not None and current_user_id is not None:
+            if current_user_role == 4:
+                query = query.filter(Voucher.created_by == current_user_id)
+            elif current_user_role not in [1, 6]:
+                accessible_ids = self._get_user_company_ids(current_user_id, current_user_role)
+                if accessible_ids:
+                    query = query.filter(Voucher.company_id.in_(accessible_ids))
+                else:
+                    return 0
 
         return query.count()
 
@@ -858,7 +962,8 @@ class VoucherService:
         self,
         voucher_id: int,
         approve_data: VoucherApprove,
-        approved_by_user_id: int
+        approved_by_user_id: int,
+        role: int
     ) -> Voucher:
         """
         Aprueba un voucher: PENDING → APPROVED
@@ -867,6 +972,7 @@ class VoucherService:
             voucher_id: ID del voucher
             approve_data: Datos de aprobación
             approved_by_user_id: Usuario que aprueba
+            role: Rol del usuario (1-6)
 
         Returns:
             Voucher aprobado
@@ -875,6 +981,9 @@ class VoucherService:
             BusinessRuleError: Si no está en PENDING
         """
         voucher = self.get_voucher(voucher_id)
+
+        # Validar acceso a la empresa (scoping multi-empresa)
+        self._validate_company_access(approved_by_user_id, role, voucher.company_id)
 
         # Validar estado
         if voucher.status != VoucherStatusEnum.PENDING:
@@ -909,6 +1018,13 @@ class VoucherService:
 
         self.db.commit()
         self.db.refresh(voucher)
+
+        # Enviar correo de aprobación en background (con PDF)
+        try:
+            from app.shared.tasks.voucher_tasks import send_voucher_approved_email_task
+            send_voucher_approved_email_task.delay(voucher_id)
+        except Exception as e:
+            logger.warning(f"[VOUCHER SERVICE] No se pudo encolar tarea de email aprobación: {e}")
 
         return voucher
 
@@ -1009,7 +1125,8 @@ class VoucherService:
         self,
         voucher_id: int,
         cancel_data: VoucherCancel,
-        cancelled_by_user_id: int
+        cancelled_by_user_id: int,
+        role: int
     ) -> Voucher:
         """
         Cancela un voucher: → CANCELLED
@@ -1020,6 +1137,7 @@ class VoucherService:
             voucher_id: ID del voucher
             cancel_data: Razón de cancelación
             cancelled_by_user_id: Usuario que cancela
+            role: Rol del usuario (1-6)
 
         Returns:
             Voucher cancelado
@@ -1028,6 +1146,9 @@ class VoucherService:
             BusinessRuleError: Si ya está en tránsito o cerrado
         """
         voucher = self.get_voucher(voucher_id)
+
+        # Validar acceso a la empresa (scoping multi-empresa)
+        self._validate_company_access(cancelled_by_user_id, role, voucher.company_id)
 
         # Estados válidos para cancelar
         valid_states = [VoucherStatusEnum.PENDING, VoucherStatusEnum.APPROVED]
@@ -1098,12 +1219,44 @@ class VoucherService:
         voucher_type: Optional[VoucherTypeEnum] = None,
         from_date: Optional[date] = None,
         to_date: Optional[date] = None,
-        limit: int = 50
+        limit: int = 50,
+        user_id: Optional[int] = None,
+        role: Optional[int] = None
     ) -> List[Voucher]:
-        """Búsqueda avanzada de vouchers"""
+        """
+        Búsqueda avanzada de vouchers con scoping multi-empresa.
+
+        Si user_id y role se proporcionan, aplica filtro de empresas accesibles:
+        - Admin (role=1): Sin restricción
+        - Otros roles: Solo vouchers de empresas accesibles
+        """
+        # Aplicar scoping multi-empresa si se proporciona user_id y role
+        company_ids_filter: Optional[List[int]] = None
+        if user_id and role:
+            # Admin y Checker no tienen restricción de empresa
+            if role not in [1, 6]:
+                accessible_ids = self._get_user_company_ids(user_id, role)
+
+                # Si no tiene empresas asignadas, retornar lista vacía
+                if not accessible_ids:
+                    return []
+
+                # Si se proporciona company_id específico, validar acceso
+                if company_id:
+                    if company_id not in accessible_ids:
+                        raise BusinessRuleError(
+                            f"No tiene permiso para ver vouchers de la empresa ID {company_id}"
+                        )
+                    # company_id es válido, se pasa directamente
+                else:
+                    # Sin company_id específico: buscar en TODAS las empresas accesibles
+                    company_ids_filter = accessible_ids
+                    company_id = None  # Evitar conflicto
+
         return self.repository.search_vouchers(
             search_term=search_term,
             company_id=company_id,
+            company_ids=company_ids_filter,
             status=status,
             voucher_type=voucher_type,
             from_date=from_date,
@@ -1111,8 +1264,47 @@ class VoucherService:
             limit=limit
         )
 
-    def get_statistics(self, company_id: Optional[int] = None) -> dict:
-        """Obtiene estadísticas de vouchers"""
+    def get_statistics(
+        self,
+        company_id: Optional[int] = None,
+        user_id: Optional[int] = None,
+        role: Optional[int] = None
+    ) -> dict:
+        """
+        Obtiene estadísticas de vouchers con scoping multi-empresa.
+
+        Si user_id y role se proporcionan, aplica filtro de empresas accesibles:
+        - Admin (role=1): Sin restricción (todas las empresas)
+        - Otros roles: Solo estadísticas de empresas accesibles
+        """
+        # Aplicar scoping multi-empresa si se proporciona user_id y role
+        if user_id and role:
+            # Admin no tiene restricción
+            if role != 1:
+                accessible_ids = self._get_user_company_ids(user_id, role)
+
+                # Si no tiene empresas asignadas, retornar estadísticas vacías
+                if not accessible_ids:
+                    return {
+                        "total": 0,
+                        "pending": 0,
+                        "approved": 0,
+                        "in_transit": 0,
+                        "closed": 0,
+                        "cancelled": 0,
+                        "overdue": 0
+                    }
+
+                # Si se proporciona company_id específico, validar acceso
+                if company_id:
+                    if company_id not in accessible_ids:
+                        raise BusinessRuleError(
+                            f"No tiene permiso para ver estadísticas de la empresa ID {company_id}"
+                        )
+                # Si no se proporciona company_id, usar primera empresa accesible
+                else:
+                    company_id = accessible_ids[0] if accessible_ids else None
+
         return self.repository.get_statistics(company_id=company_id)
 
     # ==================== PROCESO AUTOMÁTICO ====================

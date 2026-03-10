@@ -269,6 +269,7 @@ class VoucherRepository(BaseRepository[Voucher]):
         self,
         search_term: Optional[str] = None,
         company_id: Optional[int] = None,
+        company_ids: Optional[List[int]] = None,
         status: Optional[VoucherStatusEnum] = None,
         voucher_type: Optional[VoucherTypeEnum] = None,
         from_date: Optional[date] = None,
@@ -303,7 +304,9 @@ class VoucherRepository(BaseRepository[Voucher]):
                 )
             )
 
-        if company_id:
+        if company_ids:
+            query = query.filter(Voucher.company_id.in_(company_ids))
+        elif company_id:
             query = query.filter(Voucher.company_id == company_id)
 
         if status:

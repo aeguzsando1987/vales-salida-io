@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 30px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header { background: #065f46; color: #fff; padding: 24px 32px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .header p { margin: 4px 0 0; font-size: 14px; opacity: 0.8; }
+    .body { padding: 24px 32px; }
+    .info-box { background: #ecfdf5; border-left: 4px solid #059669; border-radius: 4px; padding: 16px; margin: 16px 0; }
+    .info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #d1fae5; }
+    .info-row:last-child { border-bottom: none; }
+    .label { color: #6b7280; font-size: 13px; }
+    .value { font-weight: 600; color: #111827; font-size: 13px; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .badge-approved { background: #d1fae5; color: #065f46; }
+    .badge-exit { background: #fee2e2; color: #991b1b; }
+    .badge-entry { background: #d1fae5; color: #065f46; }
+    .btn { display: inline-block; margin: 20px 0 8px; padding: 12px 28px; background: #065f46; color: #fff !important; text-decoration: none; border-radius: 6px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+    .footer { background: #f9fafb; padding: 16px 32px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; }
+    .note { font-size: 13px; color: #6b7280; margin-top: 12px; }
+    .cta-section { text-align: center; padding: 8px 0 4px; }
+    .approval-notice { background: #d1fae5; border: 1px solid #6ee7b7; border-radius: 6px; padding: 12px 16px; margin: 16px 0; color: #065f46; font-size: 14px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Vale Aprobado ✓</h1>
+      <p>Sistema de Vales GPA &mdash; Notificación automática</p>
+    </div>
+    <div class="body">
+      <div class="approval-notice">
+        ✅ El vale <strong>{{folio}}</strong> ha sido aprobado y está listo para su uso.
+      </div>
+
+      <p>A continuación los detalles del vale aprobado. Se adjunta el PDF para impresión y firma.</p>
+
+      <div class="info-box">
+        <div class="info-row">
+          <span class="label">Folio</span>
+          <span class="value">{{folio}}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Tipo</span>
+          <span class="value">
+            <span class="badge {{type_badge}}">{{voucher_type}}</span>
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="label">Estado</span>
+          <span class="value">
+            <span class="badge badge-approved">APROBADO</span>
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="label">Empresa</span>
+          <span class="value">{{company_name}}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Solicitado por</span>
+          <span class="value">{{delivered_by}}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Aprobado por</span>
+          <span class="value">{{approved_by}}</span>
+        </div>
+        {{destination_row}}
+        {{return_row}}
+        <div class="info-row">
+          <span class="label">Fecha de aprobación</span>
+          <span class="value">{{approved_at}}</span>
+        </div>
+      </div>
+
+      <div class="cta-section">
+        <a href="{{voucher_url}}" class="btn">Ver Vale en el Sistema</a>
+      </div>
+
+      <p class="note">📎 Se adjunta el PDF del vale. Por favor imprímalo y recabe las firmas correspondientes como evidencia física.</p>
+      <p class="note">Si el botón no funciona, copie y pegue este enlace en su navegador:<br>
+        <a href="{{voucher_url}}">{{voucher_url}}</a>
+      </p>
+    </div>
+    <div class="footer">
+      Sistema de Vales GPA &mdash; Correo generado automáticamente, no responder.
+    </div>
+  </div>
+</body>
+</html>

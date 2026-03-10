@@ -91,7 +91,7 @@ def create_voucher(
     Permisos requeridos: vouchers:create (nivel 3+)
     """
     controller = VoucherController(db)
-    return controller.create(voucher_data, current_user.id)
+    return controller.create(voucher_data, current_user.id, current_user.role)
 
 
 @router.get(
@@ -123,7 +123,7 @@ def get_voucher(
     Permisos requeridos: vouchers:get (nivel 1+)
     """
     controller = VoucherController(db)
-    return controller.get_by_id(voucher_id, detailed, include_details)
+    return controller.get_by_id(voucher_id, detailed, include_details, current_user.id, current_user.role)
 
 
 @router.get(
@@ -259,7 +259,7 @@ def approve_voucher(
     Permisos requeridos: vouchers:approve (nivel 3+)
     """
     controller = VoucherController(db)
-    return controller.approve(voucher_id, approve_data, current_user.id)
+    return controller.approve(voucher_id, approve_data, current_user.id, current_user.role)
 
 
 @router.post(
@@ -271,7 +271,7 @@ def approve_voucher(
 def start_transit(
     voucher_id: int = Path(..., gt=0, description="ID del voucher"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("vouchers", "scan_qr", min_level=3))
+    current_user: User = Depends(require_permission("vouchers", "start_transit", min_level=3))
 ):
     """
     Inicia tránsito: APPROVED → IN_TRANSIT
@@ -354,7 +354,7 @@ def cancel_voucher(
     Permisos requeridos: vouchers:cancel (nivel 3+)
     """
     controller = VoucherController(db)
-    return controller.cancel(voucher_id, cancel_data, current_user.id)
+    return controller.cancel(voucher_id, cancel_data, current_user.id, current_user.role)
 
 
 # ==================== LOG ENDPOINTS (AUDITORÍA) ====================
@@ -456,7 +456,7 @@ def validate_exit(
     Roles permitidos: Admin, Manager, Supervisor, Checker
     """
     controller = VoucherController(db)
-    return controller.validate_exit(voucher_id, validation_data, qr_token, current_user.id)
+    return controller.validate_exit(voucher_id, validation_data, qr_token, current_user.id, current_user.role)
 
 
 @router.get(
@@ -468,7 +468,7 @@ def validate_exit(
 def get_voucher_logs(
     voucher_id: int = Path(..., gt=0, description="ID del voucher"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("vouchers", "view_logs", min_level=2))
+    current_user: User = Depends(require_permission("vouchers", "logs", min_level=2))
 ):
     """
     Obtiene la bitácora completa de un voucher (entry_log + out_log).
@@ -486,7 +486,7 @@ def get_voucher_logs(
     Validaciones:
     - Voucher existe
 
-    Permisos requeridos: vouchers:view_logs (nivel 2+)
+    Permisos requeridos: vouchers:logs (nivel 2+)
     Roles permitidos: Admin, Manager, Supervisor
     """
     controller = VoucherController(db)
@@ -510,7 +510,7 @@ def search_vouchers(
     to_date: Optional[date] = Query(None, description="Fecha hasta"),
     limit: int = Query(50, ge=1, le=200, description="Máximo de resultados"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("vouchers", "search", min_level=1))
+    current_user: User = Depends(require_permission("vouchers", "advanced", min_level=1))
 ):
     """
     Búsqueda avanzada de vouchers con múltiples filtros.
@@ -533,7 +533,9 @@ def search_vouchers(
         voucher_type=voucher_type,
         from_date=from_date,
         to_date=to_date,
-        limit=limit
+        limit=limit,
+        user_id=current_user.id,
+        role=current_user.role
     )
 
 
@@ -561,7 +563,7 @@ def get_vouchers_by_company(
     Permisos requeridos: vouchers:list (nivel 1+)
     """
     controller = VoucherController(db)
-    return controller.find_by_company(company_id, skip, limit)
+    return controller.find_by_company(company_id, skip, limit, current_user.id, current_user.role)
 
 
 @router.get(
@@ -641,7 +643,7 @@ def validate_qr_token(
 def get_statistics(
     company_id: Optional[int] = Query(None, gt=0, description="Filtrar por empresa"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("vouchers", "view_statistics", min_level=1))
+    current_user: User = Depends(require_permission("vouchers", "overview", min_level=1))
 ):
     """
     Obtiene estadísticas de vouchers.
@@ -660,7 +662,7 @@ def get_statistics(
     Permisos requeridos: vouchers:view_statistics (nivel 1+)
     """
     controller = VoucherController(db)
-    return controller.get_statistics(company_id)
+    return controller.get_statistics(company_id, current_user.id, current_user.role)
 
 
 # ==================== UTILITY ENDPOINTS ====================
@@ -700,7 +702,7 @@ def get_enums(
 )
 def check_overdue_vouchers(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("vouchers", "maintenance", min_level=4))
+    current_user: User = Depends(require_permission("vouchers", "check_overdue", min_level=4))
 ):
     """
     Proceso automático para marcar vouchers vencidos.
@@ -801,7 +803,7 @@ def generate_voucher_qr(
 def get_task_status(
     task_id: str = Path(..., description="ID de la tarea de Celery"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("vouchers", "view_tasks", min_level=1))
+    current_user: User = Depends(require_permission("vouchers", "status", min_level=1))
 ):
     """
     Consulta el estado de una tarea de Celery (generación de PDF o QR).
@@ -832,7 +834,7 @@ def get_task_status(
 def get_voucher_generation_info(
     voucher_id: int = Path(..., gt=0, description="ID del voucher"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("vouchers", "view_generation_info", min_level=1))
+    current_user: User = Depends(require_permission("vouchers", "generation_info", min_level=1))
 ):
     """
     Obtiene información de generación de PDF/QR de un voucher.
@@ -863,7 +865,7 @@ def get_voucher_generation_info(
 def get_voucher_pdf_metadata(
     voucher_id: int = Path(..., gt=0, description="ID del voucher"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("vouchers", "view_pdf_metadata", min_level=1))
+    current_user: User = Depends(require_permission("vouchers", "pdf_metadata", min_level=1))
 ):
     """
     Obtiene metadata del último PDF generado para un voucher.

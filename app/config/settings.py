@@ -178,6 +178,19 @@ class Settings(BaseSettings):
     qr_image_format: str = Field(default="PNG")
     qr_temp_file_cleanup_minutes: int = Field(default=60)
 
+    # ==================== EMAIL / SMTP CONFIGURATION ====================
+    mail_enabled: bool = Field(default=False, env="MAIL_ENABLED")
+    mail_server: str = Field(default="smtp.gmail.com", env="MAIL_SERVER")
+    mail_port: int = Field(default=587, env="MAIL_PORT")
+    mail_username: str = Field(default="", env="MAIL_USERNAME")
+    mail_password: str = Field(default="", env="MAIL_PASSWORD")
+    mail_from: str = Field(default="", env="MAIL_FROM")
+    mail_from_name: str = Field(default="Sistema de Vales GPA", env="MAIL_FROM_NAME")
+    mail_use_tls: bool = Field(default=True, env="MAIL_USE_TLS")
+
+    # IP pública del servidor (usada para armar URLs en correos)
+    server_ip: str = Field(default="localhost", env="SERVER_IP")
+
     # ==================== CELERY CONFIGURATION (Phase 4) ====================
     celery_broker_url: str = Field(default="redis://localhost:6379/0")
     celery_result_backend: str = Field(default="redis://localhost:6379/0")
@@ -337,6 +350,13 @@ class Settings(BaseSettings):
             ("qr", "border"): "qr_border",
             ("qr", "image_format"): "qr_image_format",
             ("qr", "temp_file_cleanup_minutes"): "qr_temp_file_cleanup_minutes",
+
+            # Email Configuration
+            ("email", "enabled"): "mail_enabled",
+            ("email", "server"): "mail_server",
+            ("email", "port"): "mail_port",
+            ("email", "from_name"): "mail_from_name",
+            ("email", "use_tls"): "mail_use_tls",
 
             # Celery Configuration (Phase 4)
             ("celery", "broker_url"): "celery_broker_url",
