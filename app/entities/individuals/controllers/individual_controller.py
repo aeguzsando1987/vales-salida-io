@@ -165,8 +165,9 @@ class IndividualController:
                 "last_name": individual.last_name,
                 "email": individual.email
             }
-        except EntityNotFoundError:
-            raise HTTPException(status_code=404, detail="Individuo no encontrado")
+        except EntityNotFoundError as e:
+            # Mostrar el mensaje original de la excepción para mayor claridad
+            raise HTTPException(status_code=404, detail=str(e))
         except EntityAlreadyExistsError as e:
             raise HTTPException(status_code=400, detail=e.message)
         except BaseAppException as e:
@@ -682,6 +683,7 @@ class IndividualController:
     def _to_individual_response(self, individual: Individual) -> Dict[str, Any]:
         """
         Convierte Individual a formato IndividualResponse para compatibilidad.
+        Incluye información de empresas para scoping multi-empresa.
         """
         return {
             "id": individual.id,
@@ -704,7 +706,22 @@ class IndividualController:
                 "id": individual.state.id,
                 "name": individual.state.name,
                 "code": individual.state.code
-            } if individual.state else None
+            } if individual.state else None,
+            # Información de empresas (multi-empresa scoping)
+            "company_id": individual.company_id,
+            "allowed_company_ids": individual.allowed_company_ids or [],
+            "accessible_company_ids": individual.accessible_company_ids,
+            "company": {
+                "id": individual.company.id,
+                "name": individual.company.company_name,
+                "tin": individual.company.tin
+            } if individual.company else None,
+            # Jerarquía organizacional
+            "direct_supervisor_id": individual.direct_supervisor_id,
+            "io_manager_id": individual.io_manager_id,
+            "direct_supervisor_name": individual.direct_supervisor.full_name if individual.direct_supervisor else None,
+            "io_manager_name": individual.io_manager.full_name if individual.io_manager else None,
+            "io_manager_email": individual.io_manager.email if individual.io_manager else None,
         }
 
     def _to_extended_response(self, individual: Individual) -> Dict[str, Any]:

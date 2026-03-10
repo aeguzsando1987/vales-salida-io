@@ -171,41 +171,45 @@ def create_individual_with_user(
     data: dict = Body(
         ...,
         openapi_examples={
-            "empleado_colaborador": {
-                "summary": "Empleado Colaborador",
-                "description": "Crear empleado con usuario rol Collaborator (nivel 3)",
+            "completo_multiempresa": {
+                "summary": "Ejemplo Completo - Multi-Empresa",
+                "description": "INCLUYE CAMPOS OPCIONALES: company_id (empresa principal) y allowed_company_ids (empresas adicionales que puede gestionar). Ideal para gerentes/supervisores con acceso a múltiples empresas.",
                 "value": {
-                    "user_email": "juan.perez@empresa.com",
-                    "user_name": "jperez",
-                    "user_password": "Password123!",
-                    "user_role": 3,
-                    "name": "Juan Carlos",
-                    "last_name": "Pérez",
-                    "email": "juan.perez@empresa.com",
+                    "user_email": "hector.ocejo@gpamex.com",
+                    "user_name": "hocejo",
+                    "user_password": "Ocejo.2026",
+                    "user_role": 2,
+                    "name": "Héctor",
+                    "last_name": "Ocejo",
+                    "email": "hector.ocejo@gpamex.com",
                     "phone": "5551234567",
                     "address": "Calle Principal 123, Ciudad de México",
-                    "status": "active"
+                    "status": "active",
+                    "company_id": 1,
+                    "allowed_company_ids": [2, 3]
                 }
             },
-            "supervisor": {
-                "summary": "Supervisor de Área",
-                "description": "Crear supervisor con usuario rol Manager (nivel 2)",
+            "completo_empresa_unica": {
+                "summary": "Ejemplo Completo - Una Empresa",
+                "description": "INCLUYE CAMPOS OPCIONALES: Solo company_id sin empresas adicionales (allowed_company_ids vacío). Usuario tendrá acceso únicamente a su empresa principal.",
                 "value": {
-                    "user_email": "maria.garcia@empresa.com",
-                    "user_name": "mgarcia",
-                    "user_password": "SuperPass456!",
+                    "user_email": "carlos.alastair@empresa2.com",
+                    "user_name": "calastair",
+                    "user_password": "Carlos.2026",
                     "user_role": 2,
-                    "name": "María Elena",
-                    "last_name": "García",
-                    "email": "maria.garcia@empresa.com",
+                    "name": "Carlos",
+                    "last_name": "Alastair",
+                    "email": "carlos.alastair@empresa2.com",
                     "phone": "5559876543",
                     "address": "Av. Reforma 456, Monterrey",
-                    "status": "active"
+                    "status": "active",
+                    "company_id": 2,
+                    "allowed_company_ids": []
                 }
             },
-            "minimo_requerido": {
-                "summary": "Campos Mínimos Requeridos",
-                "description": "Solo campos obligatorios para crear individuo con usuario",
+            "minimo_sin_empresas": {
+                "summary": "Mínimo - Sin Empresas",
+                "description": "OMITE CAMPOS OPCIONALES: No incluye company_id ni allowed_company_ids. Las empresas se pueden asignar después con PUT /individuals/{id}",
                 "value": {
                     "user_email": "nuevo.usuario@empresa.com",
                     "user_name": "nusuario",
@@ -215,6 +219,20 @@ def create_individual_with_user(
                     "last_name": "López",
                     "email": "roberto.lopez@empresa.com"
                 }
+            },
+            "minimo_con_empresa": {
+                "summary": "Mínimo - Con Empresa Principal",
+                "description": "INCLUYE SOLO company_id (opcional): Define empresa principal sin empresas adicionales. Útil para empleados básicos.",
+                "value": {
+                    "user_email": "maria.lopez@empresa.com",
+                    "user_name": "mlopez",
+                    "user_password": "Maria123!",
+                    "user_role": 3,
+                    "name": "María",
+                    "last_name": "López",
+                    "email": "maria.lopez@empresa.com",
+                    "company_id": 1
+                }
             }
         }
     ),
@@ -223,6 +241,13 @@ def create_individual_with_user(
 ):
     """
     Crear individuo con usuario - COMPATIBILIDAD TOTAL con POST /persons/with-user
+
+    **CAMPOS DE EMPRESA (OPCIONALES):**
+    - `company_id` (opcional): ID de la empresa principal a la que pertenece el empleado
+    - `allowed_company_ids` (opcional): Array de IDs de empresas adicionales que puede gestionar
+
+    Si no se proporcionan, el usuario NO tendrá restricciones de empresa hasta que se configuren.
+    Se pueden agregar/modificar posteriormente con PUT /individuals/{id}
 
     Mantiene exactamente el mismo comportamiento:
     - Transacción atómica usuario + individuo

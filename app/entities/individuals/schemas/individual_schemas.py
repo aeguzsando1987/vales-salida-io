@@ -50,6 +50,10 @@ class IndividualCreate(BaseModel):
     status: str = "active"
     country_id: Optional[int] = Field(None, description="ID del pais de residencia")
     state_id: Optional[int] = Field(None, description="ID del estado/provincia de residencia")
+    company_id: Optional[int] = Field(None, description="Empresa principal (obligatorio)")
+    allowed_company_ids: Optional[List[int]] = Field(default=[], description="Empresas adicionales")
+    direct_supervisor_id: Optional[int] = Field(None, description="ID del jefe directo (individual)")
+    io_manager_id: Optional[int] = Field(None, description="ID del encargado de entradas/salidas (individual)")
 
     @validator('name')
     def validate_name(cls, v):
@@ -84,6 +88,10 @@ class IndividualUpdate(BaseModel):
     is_active: Optional[bool] = None
     country_id: Optional[int] = Field(None, description="ID del pais de residencia")
     state_id: Optional[int] = Field(None, description="ID del estado/provincia de residencia")
+    company_id: Optional[int] = None
+    allowed_company_ids: Optional[List[int]] = None
+    direct_supervisor_id: Optional[int] = Field(None, description="ID del jefe directo (individual)")
+    io_manager_id: Optional[int] = Field(None, description="ID del encargado de entradas/salidas (individual)")
 
     @validator('name')
     def validate_name(cls, v):
@@ -163,6 +171,13 @@ class IndividualResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    company_id: Optional[int] = None
+    allowed_company_ids: List[int] = []
+    direct_supervisor_id: Optional[int] = None
+    io_manager_id: Optional[int] = None
+    direct_supervisor_name: Optional[str] = None
+    io_manager_name: Optional[str] = None
+    io_manager_email: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -309,6 +324,10 @@ class IndividualCreateExtended(BaseModel):
     additional_data: Optional[Dict[str, Any]] = Field(None, description="Datos adicionales")
     preferences: Optional[Dict[str, Any]] = Field(None, description="Preferencias")
 
+    # Relación con empresas
+    company_id: int = Field(..., description="Empresa principal")
+    allowed_company_ids: Optional[List[int]] = Field(default=[], description="Empresas adicionales")
+
     # Validadores
     @validator('first_name', 'last_name')
     def validate_names(cls, v):
@@ -413,6 +432,10 @@ class IndividualUpdateExtended(BaseModel):
     emergency_contact: Optional[EmergencyContactSchema] = None
     additional_data: Optional[Dict[str, Any]] = None
     preferences: Optional[Dict[str, Any]] = None
+
+    # Relación con empresas
+    company_id: Optional[int] = None
+    allowed_company_ids: Optional[List[int]] = None
 
     # Mismos validadores que el schema de creación
     @validator('first_name', 'last_name')
@@ -534,6 +557,10 @@ class IndividualResponseExtended(BaseModel):
     created_by: Optional[int]
     updated_by: Optional[int]
     deleted_by: Optional[int]
+
+    # Relación con empresas
+    company_id: Optional[int] = None
+    allowed_company_ids: List[int] = []
 
     class Config:
         from_attributes = True

@@ -14,6 +14,7 @@ from app.entities.individuals.repositories.individual_repository import Individu
 from app.entities.individuals.models.individual import Individual
 from app.entities.individuals.schemas.enums import IndividualStatusEnum
 from app.entities.states.repositories.state_repository import StateRepository
+from app.entities.companies.repositories.company_repository import CompanyRepository
 from app.shared.exceptions import (
     EntityNotFoundError,
     EntityAlreadyExistsError,
@@ -43,6 +44,7 @@ class IndividualService:
         self.db = db
         self.repository = IndividualRepository(db)
         self.state_repository = StateRepository(db)
+        self.company_repository = CompanyRepository(db)
 
     # ==================== VALIDACIONES GEOGRÁFICAS ====================
 
@@ -64,13 +66,55 @@ class IndividualService:
         # Verificar que el estado existe y pertenece al pais
         state = self.state_repository.get_by_id(state_id)
         if not state:
-            raise EntityNotFoundError(f"Estado con ID {state_id} no encontrado")
+            raise EntityNotFoundError("State", state_id)
 
         if state.country_id != country_id:
             raise BusinessRuleError(
                 f"El estado '{state.name}' no pertenece al pais seleccionado. "
                 f"El estado pertenece al pais con ID {state.country_id}"
             )
+
+    # ==================== VALIDACIONES DE EMPRESAS ====================
+
+    def _validate_company_data(self, company_id: Optional[int], allowed_company_ids: Optional[List[int]]) -> None:
+        """
+        Valida que las empresas asignadas existan y sean consistentes.
+
+        Args:
+            company_id: ID de la empresa principal
+            allowed_company_ids: Lista de IDs de empresas adicionales
+
+        Raises:
+            EntityNotFoundError: Si alguna empresa no existe
+            EntityValidationError: Si hay duplicados o inconsistencias
+        """
+        # Validar company_id si se proporciona
+        if company_id:
+            company = self.company_repository.get_by_id(company_id)
+            if not company:
+                raise EntityNotFoundError("Company", company_id)
+
+        # Validar allowed_company_ids si se proporciona
+        if allowed_company_ids:
+            # Validar que no haya duplicados
+            if len(allowed_company_ids) != len(set(allowed_company_ids)):
+                raise EntityValidationError(
+                    "Individual",
+                    {"allowed_company_ids": "No se permiten IDs de empresa duplicados"}
+                )
+
+            # Validar que company_id no esté en allowed_company_ids (redundante)
+            if company_id and company_id in allowed_company_ids:
+                raise EntityValidationError(
+                    "Individual",
+                    {"allowed_company_ids": f"La empresa principal (ID {company_id}) no debe estar en empresas adicionales"}
+                )
+
+            # Validar que todas las empresas existan
+            for cid in allowed_company_ids:
+                company = self.company_repository.get_by_id(cid)
+                if not company:
+                    raise EntityNotFoundError("Company", cid)
 
     # ==================== MÉTODOS DE COMPATIBILIDAD ====================
 
@@ -157,6 +201,12 @@ class IndividualService:
             individual_data.get('state_id')
         )
 
+        # Validar empresas asignadas
+        self._validate_company_data(
+            individual_data.get('company_id'),
+            individual_data.get('allowed_company_ids')
+        )
+
         return self.repository.create_individual_compatible(individual_data)
 
     def update_individual_legacy(
@@ -193,6 +243,12 @@ class IndividualService:
                 update_data['user_id'] = None  # Compatibilidad: 0 -> None
             elif update_data['user_id']:
                 self._validate_user_exists(update_data['user_id'])
+
+        # Validar empresas si se están actualizando
+        if 'company_id' in update_data or 'allowed_company_ids' in update_data:
+            company_id = update_data.get('company_id', individual.company_id)
+            allowed_company_ids = update_data.get('allowed_company_ids', individual.allowed_company_ids)
+            self._validate_company_data(company_id, allowed_company_ids)
 
         return self.repository.update_individual_compatible(individual_id, update_data, updated_by)
 
@@ -279,6 +335,12 @@ class IndividualService:
 
         if individual_data.get('document_number') and self.repository.find_by_document(individual_data['document_number']):
             raise EntityAlreadyExistsError("Individual", "document_number", individual_data['document_number'])
+
+        # Validar empresas asignadas
+        self._validate_company_data(
+            individual_data.get('company_id'),
+            individual_data.get('allowed_company_ids')
+        )
 
         return self.repository.create(individual_data)
 

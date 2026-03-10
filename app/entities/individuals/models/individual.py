@@ -26,6 +26,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import flag_modified
 from datetime import datetime, date
 from decimal import Decimal as PythonDecimal
+from typing import List
 
 # Importar base de datos y enums
 from database import Base
@@ -386,6 +387,74 @@ class Individual(Base):
     # Relaciones
     country = relationship("Country", foreign_keys=[country_id])
     state = relationship("State", foreign_keys=[state_id])
+
+    # ==================== RELACIÓN CON EMPRESAS ====================
+
+    # Empresa principal a la que pertenece el individuo
+    company_id = Column(
+        Integer,
+        ForeignKey("companies.id"),
+        nullable=True,  # Nullable para compatibilidad con registros existentes
+        index=True,
+        comment="Empresa principal a la que pertenece el empleado"
+    )
+
+    # Empresas adicionales que puede gestionar (PostgreSQL ARRAY)
+    allowed_company_ids = Column(
+        ARRAY(Integer),
+        default=[],
+        nullable=True,
+        comment="IDs de empresas adicionales que puede gestionar (además de la principal)"
+    )
+
+    # Relationship
+    company = relationship("Company", foreign_keys=[company_id])
+
+    # ==================== JERARQUÍA ORGANIZACIONAL ====================
+
+    direct_supervisor_id = Column(
+        Integer,
+        ForeignKey("individuals.id"),
+        nullable=True,
+        comment="Jefe directo del individuo"
+    )
+
+    io_manager_id = Column(
+        Integer,
+        ForeignKey("individuals.id"),
+        nullable=True,
+        comment="Encargado de entradas y salidas (default: hocejo)"
+    )
+
+    # Self-referential relationships
+    direct_supervisor = relationship(
+        "Individual",
+        foreign_keys="[Individual.direct_supervisor_id]",
+        primaryjoin="Individual.direct_supervisor_id == Individual.id",
+        uselist=False
+    )
+
+    io_manager = relationship(
+        "Individual",
+        foreign_keys="[Individual.io_manager_id]",
+        primaryjoin="Individual.io_manager_id == Individual.id",
+        uselist=False
+    )
+
+    # Propiedad calculada para acceso rápido
+    @property
+    def accessible_company_ids(self) -> List[int]:
+        """
+        Retorna todas las empresas a las que tiene acceso.
+        Combina company_id + allowed_company_ids sin duplicados.
+        """
+        if not self.company_id:
+            return self.allowed_company_ids or []
+
+        result = [self.company_id]
+        if self.allowed_company_ids:
+            result.extend([cid for cid in self.allowed_company_ids if cid != self.company_id])
+        return list(set(result))
 
     # ==================== CAMPOS DE AUDITORÍA ESTÁNDAR ====================
     # IMPORTANTE: Estos campos siguen el patrón de la plantilla original
