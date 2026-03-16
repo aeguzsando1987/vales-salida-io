@@ -1,0 +1,250 @@
+version: '3.8'
+
+# =====================================================
+# SISTEMA DE VALES - STACK COMPLETO
+# =====================================================
+# Servicios:
+#   1. PostgreSQL (Base de datos)
+#   2. Redis (Cola de tareas)
+#   3. FastAPI (API Backend)
+#   4. Celery Worker (Procesamiento PDF/QR)
+#   5. Next.js Frontend (Webapp)
+
+services:
+  # =====================================================
+  # 1. BASE DE DATOS - PostgreSQL
+  # =====================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: vales-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bpta_db_VALES_MATERIAL
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vales-network
+
+  # =====================================================
+  # 2. REDIS - Cola de tareas para Celery
+  # =====================================================
+  redis:
+    image: redis:7-alpine
+    container_name: vales-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vales-network
+
+  # =====================================================
+  # 3. BACKEND API - FastAPI
+  # =====================================================
+  api:
+    build:
+      context: ./GPA-IO-mat-system
+      dockerfile: Dockerfile
+    container_name: vales-api
+    restart: unless-stopped
+    environment:
+      # Base de datos
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@postgres:5432/bpta_db_VALES_MATERIAL
+
+      # Redis/Celery
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+      # Seguridad
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+
+      # Admin por defecto
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD}
+      DEFAULT_ADMIN_FIRST_NAME: ${DEFAULT_ADMIN_FIRST_NAME}
+      DEFAULT_ADMIN_LAST_NAME: ${DEFAULT_ADMIN_LAST_NAME}
+
+      # Configuración
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: ${DEBUG:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+
+      # Archivos temporales
+      TEMP_FILES_DIR: ${TEMP_FILES_DIR:-temp_files}
+      PDF_RETENTION_HOURS: ${PDF_RETENTION_HOURS:-1}
+      QR_RETENTION_HOURS: ${QR_RETENTION_HOURS:-24}
+
+      # Correo electrónico
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_SERVER: ${MAIL_SERVER:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Sistema de Vales GPA}
+      MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
+      SERVER_IP: ${SERVER_IP:-26.25.106.131}
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./GPA-IO-mat-system:/app
+      - api_temp_files:/app/temp_files
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Esperando PostgreSQL...' &&
+        sleep 5 &&
+        echo 'Iniciando servidor FastAPI...' &&
+        uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+      "
+    networks:
+      - vales-network
+
+  # =====================================================
+  # 4. CELERY WORKER - Procesamiento asíncrono
+  # =====================================================
+  celery-worker:
+    build:
+      context: ./GPA-IO-mat-system
+      dockerfile: Dockerfile
+    container_name: vales-celery-worker
+    restart: unless-stopped
+    environment:
+      # Base de datos
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@postgres:5432/bpta_db_VALES_MATERIAL
+
+      # Redis/Celery
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+      # Seguridad (requerido por Settings)
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+
+      # Admin por defecto (requerido por Settings)
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD}
+      DEFAULT_ADMIN_FIRST_NAME: ${DEFAULT_ADMIN_FIRST_NAME:-Administrador}
+      DEFAULT_ADMIN_LAST_NAME: ${DEFAULT_ADMIN_LAST_NAME:-Sistema}
+
+      # Configuración
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: ${DEBUG:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      TEMP_FILES_DIR: ${TEMP_FILES_DIR:-temp_files}
+
+      # Correo electrónico (requerido para send_voucher_email_task)
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_SERVER: ${MAIL_SERVER:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Sistema de Vales GPA}
+      MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
+      SERVER_IP: ${SERVER_IP:-26.25.106.131}
+    volumes:
+      - ./GPA-IO-mat-system:/app
+      - api_temp_files:/app/temp_files
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    healthcheck:
+      disable: true
+    command: celery -A app.shared.tasks.celery_app worker --loglevel=info --pool=solo
+    networks:
+      - vales-network
+
+  # =====================================================
+  # 5. FRONTEND - Next.js
+  # =====================================================
+  frontend:
+    build:
+      context: ./gpa-vouchers-web
+      dockerfile: Dockerfile
+      args:
+        # Relativa: el browser llama /api/... al mismo host, Next.js lo proxea internamente
+        NEXT_PUBLIC_API_URL: /api
+        NEXT_PUBLIC_APP_NAME: Sistema de Vales
+    container_name: vales-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # URL interna de Docker: el servidor Next.js reenvía las peticiones al contenedor 'api'
+      # El browser nunca ve esta URL (no tiene el prefijo NEXT_PUBLIC_)
+      BACKEND_URL: http://api:8001
+    # Sin puerto expuesto al exterior: solo accesible via nginx
+    expose:
+      - "3000"
+    depends_on:
+      - api
+    networks:
+      - vales-network
+
+  # =====================================================
+  # 6. NGINX - Reverse proxy HTTPS
+  # =====================================================
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: vales-nginx
+    restart: unless-stopped
+    environment:
+      # IP o dominio del servidor - se usa para generar el certificado SSL
+      SERVER_IP: ${SERVER_IP:-26.25.106.131}
+    ports:
+      - "8080:80"   # HTTP → redirige a HTTPS
+      - "443:443"   # HTTPS
+    volumes:
+      # Volumen persistente: el cert se genera una vez y se reutiliza
+      - nginx_certs:/etc/nginx/certs
+    depends_on:
+      - frontend
+    networks:
+      - vales-network
+
+# =====================================================
+# VOLÚMENES PERSISTENTES
+# =====================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  api_temp_files:
+    driver: local
+  nginx_certs:
+    driver: local
+
+# =====================================================
+# RED INTERNA
+# =====================================================
+networks:
+  vales-network:
+    driver: bridge
