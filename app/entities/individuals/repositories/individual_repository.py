@@ -7,7 +7,7 @@ del módulo modules/individuals/.
 """
 
 from typing import Optional, List, Dict, Any
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, outerjoin
 from sqlalchemy import and_, or_, func
 
 from app.shared.base_repository import BaseRepository
@@ -31,11 +31,23 @@ class IndividualRepository(BaseRepository[Individual]):
 
     def get_active_individuals(self) -> List[Individual]:
         """
-        Obtiene todos los individuos activos.
+        Obtiene todos los individuos activos cuyo usuario asociado no haya sido eliminado.
 
         Mantiene compatibilidad con GET /individuals/ existente.
         """
-        return self.db.query(Individual).filter(Individual.is_active == True).all()
+        from database import User
+        return (
+            self.db.query(Individual)
+            .outerjoin(User, Individual.user_id == User.id)
+            .filter(
+                Individual.is_active == True,
+                or_(
+                    Individual.user_id == None,
+                    and_(User.is_deleted == False, User.is_active == True)
+                )
+            )
+            .all()
+        )
 
     def find_by_email(self, email: str) -> Optional[Individual]:
         """
@@ -66,8 +78,19 @@ class IndividualRepository(BaseRepository[Individual]):
         Mantiene compatibilidad total con GET /individuals/search existente.
         Replica exactamente la lógica de modules/individuals/routes.py
         """
-        # Query base - solo individuos activos
-        query = self.db.query(Individual).filter(Individual.is_active == True)
+        # Query base - solo individuos activos con usuario no eliminado
+        from database import User
+        query = (
+            self.db.query(Individual)
+            .outerjoin(User, Individual.user_id == User.id)
+            .filter(
+                Individual.is_active == True,
+                or_(
+                    Individual.user_id == None,
+                    and_(User.is_deleted == False, User.is_active == True)
+                )
+            )
+        )
 
         # Filtros específicos (compatibilidad con API existente)
         if name:
