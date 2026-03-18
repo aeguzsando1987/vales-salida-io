@@ -452,7 +452,7 @@ class PDFGenerator:
         col1_data.append([
             Paragraph('<b>Destino:</b>', self.styles['MetadataLabel']),
             Paragraph(
-                getattr(voucher.destination_branch, 'name', 'N/A') if hasattr(voucher, 'destination_branch') and voucher.destination_branch else 'N/A',
+                getattr(voucher.destination_branch, 'branch_name', 'N/A') if hasattr(voucher, 'destination_branch') and voucher.destination_branch else 'N/A',
                 self.styles['MetadataValue']
             )
         ])
@@ -461,7 +461,7 @@ class PDFGenerator:
         if hasattr(voucher, 'origin_branch') and voucher.origin_branch:
             col2_data.append([
                 Paragraph('<b>Origen:</b>', self.styles['MetadataLabel']),
-                Paragraph(getattr(voucher.origin_branch, 'name', 'N/A'), self.styles['MetadataValue'])
+                Paragraph(getattr(voucher.origin_branch, 'branch_name', 'N/A'), self.styles['MetadataValue'])
             ])
 
         col2_data.append([

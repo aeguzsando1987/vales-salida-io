@@ -547,8 +547,16 @@ def startup_event():
         # No bloquear el inicio si falla autodiscovery
         pass
 
-    # La auto-asignación de permisos al Admin ahora se ejecuta automáticamente
-    # en initialize_database() -> initialize_permissions()
+    # Re-sincronizar permisos DESPUÉS del autodiscovery
+    # Esto asegura que los permisos nuevos detectados por autodiscovery
+    # queden asignados a los templates de roles correctamente en el mismo startup.
+    try:
+        from app.shared.init_db import initialize_permissions
+        print("\nRe-sincronizando templates de permisos post-autodiscovery...")
+        initialize_permissions(db)
+    except Exception as e:
+        print(f"Error en re-sincronización de permisos: {e}")
+        pass
 
     # Iniciar scheduler de tareas automáticas (Fase 2)
     from app.config.settings import settings
