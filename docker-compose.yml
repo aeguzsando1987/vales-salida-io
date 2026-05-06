@@ -226,7 +226,7 @@ services:
       SERVER_DOMAIN: ${SERVER_DOMAIN:-}
     ports:
       - "8080:80"   # HTTP → redirige a HTTPS
-      - "443:443"   # HTTPS
+      - "8443:443"  # HTTPS
     volumes:
       # Volumen persistente: el cert se genera una vez y se reutiliza
       - nginx_certs:/etc/nginx/certs
