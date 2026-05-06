@@ -18,7 +18,7 @@ class SystemConfig(Base):
     key = Column(String(100), unique=True, nullable=False, index=True)
     value = Column(Text, nullable=True)
     description = Column(String(255), nullable=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     updated_by_user = relationship("User", foreign_keys=[updated_by])

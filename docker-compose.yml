@@ -59,11 +59,13 @@ services:
   # =====================================================
   api:
     build:
-      context: ./GPA-IO-mat-system
+      context: .
       dockerfile: Dockerfile
     container_name: vales-api
     restart: unless-stopped
     environment:
+      # Zona horaria
+      TZ: America/Mexico_City
       # Base de datos
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@postgres:5432/bpta_db_VALES_MATERIAL
 
@@ -100,11 +102,11 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Sistema de Vales GPA}
       MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
-      SERVER_IP: ${SERVER_IP:-26.25.106.131}
+      SERVER_IP: ${SERVER_IP:-26.32.18.150}
     ports:
       - "8001:8001"
     volumes:
-      - ./GPA-IO-mat-system:/app
+      - .:/app
       - api_temp_files:/app/temp_files
     depends_on:
       postgres:
@@ -116,7 +118,7 @@ services:
         echo 'Esperando PostgreSQL...' &&
         sleep 5 &&
         echo 'Iniciando servidor FastAPI...' &&
-        uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+        uvicorn main:app --host 0.0.0.0 --port 8001
       "
     networks:
       - vales-network
@@ -126,11 +128,13 @@ services:
   # =====================================================
   celery-worker:
     build:
-      context: ./GPA-IO-mat-system
+      context: .
       dockerfile: Dockerfile
     container_name: vales-celery-worker
     restart: unless-stopped
     environment:
+      # Zona horaria
+      TZ: America/Mexico_City
       # Base de datos
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@postgres:5432/bpta_db_VALES_MATERIAL
 
@@ -163,9 +167,9 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Sistema de Vales GPA}
       MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
-      SERVER_IP: ${SERVER_IP:-26.25.106.131}
+      SERVER_IP: ${SERVER_IP:-26.32.18.150}
     volumes:
-      - ./GPA-IO-mat-system:/app
+      - .:/app
       - api_temp_files:/app/temp_files
     depends_on:
       postgres:
@@ -185,7 +189,7 @@ services:
   # =====================================================
   frontend:
     build:
-      context: ./gpa-vouchers-web
+      context: ../gpa-material-vouchers-web
       dockerfile: Dockerfile
       args:
         # Relativa: el browser llama /api/... al mismo host, Next.js lo proxea internamente
@@ -217,7 +221,8 @@ services:
     restart: unless-stopped
     environment:
       # IP o dominio del servidor - se usa para generar el certificado SSL
-      SERVER_IP: ${SERVER_IP:-26.25.106.131}
+      SERVER_IP: ${SERVER_IP:-26.32.18.150}
+      LOCAL_IP: ${LOCAL_IP:-192.168.1.10}
     ports:
       - "8080:80"   # HTTP → redirige a HTTPS
       - "443:443"   # HTTPS

@@ -12,7 +12,7 @@ from reportlab.platypus import PageBreak, KeepTogether
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 import logging
 
@@ -102,100 +102,95 @@ class PDFGenerator:
 
     def _setup_custom_styles(self):
         """Configura estilos personalizados para el documento."""
-        # Título "COMPROBANTE DE..." - NUEVO
         self.styles.add(ParagraphStyle(
             name='ComprobanteTitle',
             parent=self.styles['Heading1'],
-            fontSize=16,
+            fontSize=8,
+            leading=9,
             textColor=colors.black,
-            spaceAfter=8,
+            spaceAfter=0,
             spaceBefore=0,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
 
-        # Título principal (nombre de empresa) - REDUCIDO
         self.styles.add(ParagraphStyle(
             name='CompanyName',
             parent=self.styles['Heading1'],
-            fontSize=14,
+            fontSize=7,
+            leading=8,
             textColor=colors.black,
-            spaceAfter=3,
+            spaceAfter=0,
             spaceBefore=0,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
 
-        # Folio - REDUCIDO
         self.styles.add(ParagraphStyle(
             name='Folio',
             parent=self.styles['Normal'],
-            fontSize=11,
+            fontSize=6,
+            leading=7,
             textColor=colors.HexColor('#333333'),
-            spaceAfter=5,
+            spaceAfter=0,
+            spaceBefore=0,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
 
-        # Badge de tipo (redondeado con fondo de color)
         self.styles.add(ParagraphStyle(
             name='TypeBadge',
             parent=self.styles['Normal'],
-            fontSize=12,
+            fontSize=6,
             textColor=colors.white,
-            spaceBefore=5,
-            spaceAfter=5,
+            spaceBefore=0,
+            spaceAfter=0,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
 
-        # Badge de estado
         self.styles.add(ParagraphStyle(
             name='StatusBadge',
             parent=self.styles['Normal'],
-            fontSize=11,
-            spaceBefore=3,
-            spaceAfter=10,
+            fontSize=6,
+            spaceBefore=0,
+            spaceAfter=0,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
 
-        # Labels de metadata
         self.styles.add(ParagraphStyle(
             name='MetadataLabel',
             parent=self.styles['Normal'],
-            fontSize=10,
+            fontSize=7,
             textColor=colors.HexColor('#666666'),
             fontName='Helvetica-Bold'
         ))
 
-        # Valores de metadata
         self.styles.add(ParagraphStyle(
             name='MetadataValue',
             parent=self.styles['Normal'],
-            fontSize=10,
+            fontSize=7,
             textColor=colors.HexColor('#333333'),
             fontName='Helvetica'
         ))
 
-        # Texto normal
         self.styles.add(ParagraphStyle(
             name='Body_Custom',
             parent=self.styles['Normal'],
-            fontSize=10,
-            leading=14,
+            fontSize=7,
+            leading=10,
             alignment=TA_LEFT
         ))
 
-        # Sección de título (Artículos, Firmas, etc.)
         self.styles.add(ParagraphStyle(
             name='SectionTitle',
             parent=self.styles['Normal'],
-            fontSize=11,
+            fontSize=8,
             textColor=colors.HexColor('#333333'),
             fontName='Helvetica-Bold',
-            spaceAfter=8,
-            spaceBefore=10
+            spaceAfter=2,
+            spaceBefore=3
         ))
 
     def generate_voucher_pdf(self, voucher: Any, qr_image_path: str) -> str:
@@ -219,68 +214,58 @@ class PDFGenerator:
         label = self.LABELS[voucher_type_key]
 
         # Generar nombre de archivo
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"voucher_{voucher.id}_{timestamp}.pdf"
         pdf_path = self.temp_dir / filename
 
         try:
+            # Banda QR: 0.5 in de alto + 0.12 in de gap = 0.62 in de topMargin
+            QR_BAND_H = 0.5 * inch
+
             # Crear documento PDF con función de dibujo de banda lateral
             doc = SimpleDocTemplate(
                 str(pdf_path),
                 pagesize=letter,
-                rightMargin=3*cm,  # Espacio para banda de color (2.5cm + margen)
+                rightMargin=2.2*cm,  # Espacio para banda de color (1.5cm + 0.7cm margen)
                 leftMargin=2*cm,
-                topMargin=2*cm,
-                bottomMargin=2*cm,
+                topMargin=QR_BAND_H + 0.12*inch,
+                bottomMargin=1.5*cm,
             )
 
             # Construir contenido
             story = []
 
-            # Encabezado con badges
+            # Sección de título compacta
             story.extend(self._build_header(
                 label,
                 color,
                 voucher.folio,
                 voucher.status,
-                getattr(voucher.company, 'legal_name', 'N/A') if hasattr(voucher, 'company') and voucher.company else 'N/A',
                 voucher.voucher_type
             ))
 
             # Información del voucher (metadata)
             story.extend(self._build_voucher_info(voucher))
 
-            # Detalles/líneas del voucher
-            print(f"[DEBUG] hasattr(voucher, 'details'): {hasattr(voucher, 'details')}")
-            if hasattr(voucher, 'details'):
-                print(f"[DEBUG] voucher.details: {voucher.details}")
-                print(f"[DEBUG] len(voucher.details): {len(voucher.details) if voucher.details else 0}")
-
             if hasattr(voucher, 'details') and voucher.details and len(voucher.details) > 0:
-                story.append(Spacer(1, 0.3*inch))
+                story.append(Spacer(1, 0.07*inch))
                 story.extend(self._build_details_table(voucher.details))
-            else:
-                print(f"[DEBUG] NO SE AGREGARON DETALLES - Condición falló")
 
             # Notas/observaciones
             if voucher.notes:
-                story.append(Spacer(1, 0.2*inch))
+                story.append(Spacer(1, 0.05*inch))
                 story.extend(self._build_notes(voucher.notes))
 
             # Firmas digitales
-            story.append(Spacer(1, 0.4*inch))
+            story.append(Spacer(1, 0.07*inch))
             story.extend(self._build_signatures())
 
-            # Footer con QR y timestamp
-            story.append(Spacer(1, 0.3*inch))
-            story.extend(self._build_footer_with_qr(qr_image_path))
+            def _on_page(c, d):
+                self._draw_qr_band(c, d, qr_image_path, QR_BAND_H)
+                self._draw_color_band(c, d, color, color_light)
 
-            # Construir PDF con callback para dibujar banda lateral
-            doc.build(
-                story,
-                onFirstPage=lambda c, d: self._draw_color_band(c, d, color, color_light),
-                onLaterPages=lambda c, d: self._draw_color_band(c, d, color, color_light)
-            )
+            # Construir PDF con callbacks para banda lateral y banda QR
+            doc.build(story, onFirstPage=_on_page, onLaterPages=_on_page)
 
             logger.info(f"PDF generado exitosamente: {pdf_path}")
             return str(pdf_path.absolute())
@@ -292,36 +277,82 @@ class PDFGenerator:
                 pdf_path.unlink()
             raise
 
+    # Ancho de la banda lateral (usado también para ajustar tablas)
+    BAND_WIDTH = 1.5 * cm
+
     def _draw_color_band(self, canvas_obj: canvas.Canvas, doc: Any, color: colors.Color, color_light: colors.Color):
-        """
-        Dibuja la banda lateral de color en el lado derecho de la página.
-        Simula un gradiente usando dos rectángulos.
-        """
+        """Dibuja la banda lateral de color en el lado derecho de la página."""
         canvas_obj.saveState()
 
-        # Banda de color principal - TODA LA ALTURA
-        canvas_obj.setStrokeColor(color)
+        bw = self.BAND_WIDTH
+
+        # Mitad inferior — color base
         canvas_obj.setFillColor(color)
+        canvas_obj.setStrokeColor(color)
         canvas_obj.rect(
-            letter[0] - 2.5*cm,  # Posición X (lado derecho menos 2.5cm)
-            0,                    # Posición Y (desde abajo)
-            2.5*cm,              # Ancho de la banda
-            letter[1],           # Alto (toda la altura de la página)
-            stroke=1,            # CON borde para debug
-            fill=1               # Relleno
+            letter[0] - bw,
+            0,
+            bw,
+            letter[1] * 0.5,
+            stroke=0,
+            fill=1
         )
 
-        # Banda de gradiente superior (más clara)
+        # Mitad superior — color más claro (efecto gradiente)
         canvas_obj.setFillColor(color_light)
         canvas_obj.setStrokeColor(color_light)
         canvas_obj.rect(
-            letter[0] - 2.5*cm,
-            letter[1] * 0.5,     # Desde la mitad de la página
-            2.5*cm,
-            letter[1] * 0.5,     # Hasta el final
-            stroke=1,
+            letter[0] - bw,
+            letter[1] * 0.5,
+            bw,
+            letter[1] * 0.5,
+            stroke=0,
             fill=1
         )
+
+        canvas_obj.restoreState()
+
+    def _draw_qr_band(self, canvas_obj: canvas.Canvas, doc: Any, qr_image_path: str, band_height: float):
+        """Dibuja la banda superior full-width: QR a la izquierda, caption + timestamp al centro."""
+        canvas_obj.saveState()
+
+        page_w = letter[0]
+        page_h = letter[1]
+        y_band = page_h - band_height  # y inferior de la banda
+        mid_y = y_band + band_height / 2
+
+        # Fondo gris claro
+        canvas_obj.setFillColor(colors.HexColor('#f2f2f2'))
+        canvas_obj.rect(0, y_band, page_w, band_height, stroke=0, fill=1)
+
+        # Línea inferior
+        canvas_obj.setStrokeColor(colors.HexColor('#cccccc'))
+        canvas_obj.setLineWidth(0.5)
+        canvas_obj.line(0, y_band, page_w, y_band)
+
+        # QR: esquina izquierda, centrado verticalmente
+        qr_size = band_height * 0.72
+        margin_left = 0.18 * inch
+        qr_x = margin_left
+        qr_y = y_band + (band_height - qr_size) / 2
+
+        if qr_image_path and Path(qr_image_path).exists():
+            canvas_obj.drawImage(
+                qr_image_path,
+                qr_x, qr_y,
+                width=qr_size, height=qr_size,
+                preserveAspectRatio=True, mask='auto'
+            )
+
+        # Texto caption + timestamp a la derecha del QR
+        text_x = qr_x + qr_size + 0.12 * inch
+        canvas_obj.setFont('Helvetica', 5.5)
+        canvas_obj.setFillColor(colors.HexColor('#555555'))
+        canvas_obj.drawString(text_x, mid_y + 4, 'Escanea para verificar la autenticidad del comprobante.')
+        generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        canvas_obj.setFont('Helvetica', 5)
+        canvas_obj.setFillColor(colors.HexColor('#888888'))
+        canvas_obj.drawString(text_x, mid_y - 5, f'Generado: {generated_at}')
 
         canvas_obj.restoreState()
 
@@ -334,11 +365,52 @@ class PDFGenerator:
         else:
             return 'ENTRY'  # Default
 
-    def _build_header(self, label: str, color: colors.Color, folio: str, status: str, company_name: str, voucher_type: str):
-        """Construye el encabezado del documento con badges."""
+    def _build_qr_band(self, qr_image_path: str):
+        """Banda superior delgada con QR y texto explicativo, estilo encabezado de Word."""
         elements = []
 
-        # Mapeo de estados a español
+        qr_path = Path(qr_image_path) if qr_image_path else None
+
+        if qr_path and qr_path.exists():
+            qr_img = Image(str(qr_path), width=0.45*inch, height=0.45*inch)
+            qr_cell = Table([[qr_img]], colWidths=[0.55*inch])
+            qr_cell.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ]))
+        else:
+            qr_cell = Spacer(0.55*inch, 0.1*inch)
+
+        caption = Paragraph(
+            '<font size="6" color="#555555">Escanea este código para verificar la autenticidad '
+            'de este comprobante en el sistema.</font>',
+            self.styles['Body_Custom']
+        )
+        text_cell = Table([[caption]], colWidths=[4.55*inch])
+        text_cell.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ]))
+
+        band_table = Table([[qr_cell, text_cell]], colWidths=[0.55*inch, 4.55*inch])
+        band_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f2f2f2')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+        ]))
+        elements.append(band_table)
+        elements.append(Spacer(1, 0.04*inch))
+
+        return elements
+
+    def _build_header(self, label: str, color: colors.Color, folio: str, status: str, voucher_type: str):
+        """Sección de título compacta: grupo, tipo de comprobante, folio, badges."""
+        elements = []
+
         status_map = {
             'PENDING': 'PENDIENTE',
             'APPROVED': 'APROBADO',
@@ -348,154 +420,166 @@ class PDFGenerator:
             'CANCELLED': 'CANCELADO'
         }
         status_texto = status_map.get(status, status)
-
-        # Título "COMPROBANTE DE..." - NUEVO
         comprobante_tipo = "ENTRADA" if voucher_type == "ENTRY" else "SALIDA"
-        comprobante_title = Paragraph(
-            f"<b>COMPROBANTE DE {comprobante_tipo}</b>",
-            self.styles['ComprobanteTitle']
-        )
-        elements.append(comprobante_title)
-        elements.append(Spacer(1, 0.1*inch))
 
-        # Nombre de empresa - ESPACIOS REDUCIDOS
-        company_para = Paragraph(company_name, self.styles['CompanyName'])
-        elements.append(company_para)
-        elements.append(Spacer(1, 0.02*inch))
+        title_rows = [
+            [Paragraph("<b>GRUPO GPA</b>", self.styles['ComprobanteTitle'])],
+            [Paragraph(f"<b>COMPROBANTE DE {comprobante_tipo}</b>", self.styles['CompanyName'])],
+            [Paragraph(f"FOLIO: {folio}", self.styles['Folio'])],
+        ]
 
-        # Folio - ESPACIOS REDUCIDOS
-        folio_para = Paragraph(folio, self.styles['Folio'])
-        elements.append(folio_para)
-        elements.append(Spacer(1, 0.05*inch))
+        title_block = Table(title_rows, colWidths=[5.1*inch])
+        title_block.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(title_block)
 
-        # Crear tabla con tipo de voucher y status en una sola fila
-        # Badge de tipo de voucher (con color de fondo)
+        # Badges de tipo y estado
         type_badge = Paragraph(f"<b>{label}</b>", self.styles['TypeBadge'])
-        type_cell = Table([[type_badge]], colWidths=[3*inch])
+        type_cell = Table([[type_badge]], colWidths=[2.4*inch])
         type_cell.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), color),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('ROUNDEDCORNERS', [5, 5, 5, 5]),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ]))
 
-        # Badge de estado (con color específico) - MAS PROMINENTE
         status_config = self.STATUS_COLORS.get(status, {
             'bg': colors.HexColor('#e2e3e5'),
             'fg': colors.HexColor('#383d41')
         })
-
         status_style = ParagraphStyle(
             name='StatusBadgeColored',
             parent=self.styles['StatusBadge'],
             textColor=status_config['fg'],
-            fontSize=12  # Aumentado
+            fontSize=7
         )
-
         status_badge = Paragraph(f"<b>ESTADO: {status_texto}</b>", status_style)
-        status_cell = Table([[status_badge]], colWidths=[2.3*inch])
+        status_cell = Table([[status_badge]], colWidths=[1.7*inch])
         status_cell.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), status_config['bg']),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('ROUNDEDCORNERS', [5, 5, 5, 5]),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ]))
 
-        # Combinar tipo y status en una fila
-        combined_table = Table([[type_cell, status_cell]], colWidths=[3.1*inch, 2.4*inch])
-        combined_table.setStyle(TableStyle([
+        badges_row = Table([[type_cell, status_cell]], colWidths=[2.5*inch, 1.8*inch])
+        badges_row.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
-        elements.append(combined_table)
 
-        # Línea divisoria - ESPACIOS REDUCIDOS
-        elements.append(Spacer(1, 0.08*inch))
-        line_data = [['']]
-        line_table = Table(line_data, colWidths=[5.5*inch])
+        centered_badges = Table([[badges_row]], colWidths=[5.1*inch])
+        centered_badges.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER')]))
+        elements.append(centered_badges)
+
+        elements.append(Spacer(1, 0.04*inch))
+        line_table = Table([['']], colWidths=[5.1*inch])
         line_table.setStyle(TableStyle([
-            ('LINEABOVE', (0, 0), (-1, 0), 2, colors.HexColor('#333333')),
+            ('LINEABOVE', (0, 0), (-1, 0), 1, colors.HexColor('#555555')),
         ]))
         elements.append(line_table)
-        elements.append(Spacer(1, 0.08*inch))
+        elements.append(Spacer(1, 0.03*inch))
 
         return elements
 
     def _build_voucher_info(self, voucher: Any):
-        """Construye la sección de metadata del voucher."""
+        """Construye la sección de metadata del voucher en 3 columnas."""
         elements = []
 
-        # Definir las estructura del encabezado en 2 columnas
-        col1_data = []
-        col2_data = []
-
-        # Mapeo de tipos a español
-        tipo_map = {
-            'ENTRY': 'ENTRADA',
-            'EXIT': 'SALIDA'
-        }
-        
+        tipo_map = {'ENTRY': 'ENTRADA', 'EXIT': 'SALIDA'}
         tipo_texto = tipo_map.get(voucher.voucher_type, voucher.voucher_type)
 
-        # Columna 1
-        col1_data.append([
-            Paragraph('<b>Fecha Creación:</b>', self.styles['MetadataLabel']),
-            Paragraph(voucher.created_at.strftime("%Y-%m-%d %H:%M"), self.styles['MetadataValue'])
-        ])
-        col1_data.append([
-            Paragraph('<b>Tipo:</b>', self.styles['MetadataLabel']),
-            Paragraph(tipo_texto, self.styles['MetadataValue'])
-        ])
-        col1_data.append([
-            Paragraph('<b>Destino:</b>', self.styles['MetadataLabel']),
-            Paragraph(
-                getattr(voucher.destination_branch, 'branch_name', 'N/A') if hasattr(voucher, 'destination_branch') and voucher.destination_branch else 'N/A',
-                self.styles['MetadataValue']
+        def lbl(text):
+            return Paragraph(f'<b>{text}</b>', self.styles['MetadataLabel'])
+
+        def val(text):
+            return Paragraph(str(text) if text else '—', self.styles['MetadataValue'])
+
+        # --- Datos de creador y aprobador ---
+        creator_name = '—'
+        creator_individual = getattr(voucher, '_creator_individual', None)
+        if creator_individual:
+            creator_name = (
+                getattr(creator_individual, 'full_name', None)
+                or f"{getattr(creator_individual, 'first_name', '')} {getattr(creator_individual, 'last_name', '')}".strip()
+                or '—'
             )
-        ])
+        elif hasattr(voucher, 'creator') and voucher.creator:
+            creator_name = getattr(voucher.creator, 'name', '—') or '—'
 
-        # Columna 2
-        if hasattr(voucher, 'origin_branch') and voucher.origin_branch:
-            col2_data.append([
-                Paragraph('<b>Origen:</b>', self.styles['MetadataLabel']),
-                Paragraph(getattr(voucher.origin_branch, 'branch_name', 'N/A'), self.styles['MetadataValue'])
-            ])
+        approver_name = '—'
+        if hasattr(voucher, 'approved_by') and voucher.approved_by:
+            approver_name = (
+                getattr(voucher.approved_by, 'full_name', None)
+                or f"{getattr(voucher.approved_by, 'first_name', '')} {getattr(voucher.approved_by, 'last_name', '')}".strip()
+                or '—'
+            )
 
-        col2_data.append([
-            Paragraph('<b>Con retorno:</b>', self.styles['MetadataLabel']),
-            Paragraph('Sí' if voucher.with_return else 'No', self.styles['MetadataValue'])
-        ])
+        company_name = '—'
+        if hasattr(voucher, 'company') and voucher.company:
+            company_name = (
+                getattr(voucher.company, 'company_name', None)
+                or getattr(voucher.company, 'legal_name', '—')
+                or '—'
+            )
 
+        intercompany_text = 'Sí' if getattr(voucher, 'is_intercompany', False) else 'No'
+
+        # Columna 1: fechas y tipo
+        col1 = [
+            [lbl('Fecha Creación:'), val(voucher.created_at.strftime("%d/%m/%Y %H:%M"))],
+            [lbl('Tipo:'),           val(tipo_texto)],
+            [lbl('Con retorno:'),    val('Sí' if voucher.with_return else 'No')],
+        ]
         if voucher.estimated_return_date and voucher.with_return:
-            col2_data.append([
-                Paragraph('<b>Retorno estimado:</b>', self.styles['MetadataLabel']),
-                Paragraph(str(voucher.estimated_return_date), self.styles['MetadataValue'])
-            ])
+            col1.append([lbl('Retorno estimado:'), val(str(voucher.estimated_return_date))])
 
-        # Crear tablas de columnas
-        col1_table = Table(col1_data, colWidths=[1.2*inch, 1.5*inch])
-        col1_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ]))
+        # Columna 2: origen/destino e intercompañía
+        col2 = [
+            [lbl('Empresa:'),       val(company_name)],
+            [lbl('Intercompañía:'), val(intercompany_text)],
+        ]
+        if hasattr(voucher, 'origin_branch') and voucher.origin_branch:
+            col2.append([lbl('Origen:'), val(getattr(voucher.origin_branch, 'branch_name', '—'))])
+        if hasattr(voucher, 'destination_branch') and voucher.destination_branch:
+            col2.append([lbl('Destino:'), val(getattr(voucher.destination_branch, 'branch_name', '—'))])
+        else:
+            col2.append([lbl('Destino:'), val('—')])
+        col2.append([lbl('Dest. Externo:'), val(getattr(voucher, 'outer_destination', None) or '—')])
 
-        col2_table = Table(col2_data, colWidths=[1.2*inch, 1.5*inch])
-        col2_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 5),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ]))
+        # Columna 3: personas involucradas
+        col3 = [
+            [lbl('Creado por:'),   val(creator_name)],
+            [lbl('Aprobado por:'), val(approver_name)],
+        ]
 
-        # Combinar columnas en tabla principal
-        metadata_table = Table([[col1_table, col2_table]], colWidths=[2.7*inch, 2.7*inch])
+        col_style = TableStyle([
+            ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ])
+
+        t1 = Table(col1, colWidths=[1.0*inch, 1.3*inch])
+        t1.setStyle(col_style)
+        t2 = Table(col2, colWidths=[1.0*inch, 1.3*inch])
+        t2.setStyle(col_style)
+        t3 = Table(col3, colWidths=[0.9*inch, 1.3*inch])
+        t3.setStyle(col_style)
+
+        metadata_table = Table([[t1, t2, t3]], colWidths=[2.3*inch, 2.3*inch, 2.2*inch])
         metadata_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('VALIGN',       (0, 0), (-1, -1), 'TOP'),
+            ('LINEAFTER',    (0, 0), (1, 0),   0.5, colors.HexColor('#cccccc')),
+            ('LEFTPADDING',  (1, 0), (2, 0),   6),
         ]))
 
         elements.append(metadata_table)
@@ -528,19 +612,19 @@ class PDFGenerator:
             ])
 
         # Crear tabla
-        details_table = Table(table_data, colWidths=[0.4*inch, 2.2*inch, 0.8*inch, 0.8*inch, 1.3*inch])
+        details_table = Table(table_data, colWidths=[0.35*inch, 2.8*inch, 0.85*inch, 0.85*inch, 1.75*inch])
 
         # Estilos base
         style_commands = [
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),  # Header
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),  # Header centrado
             ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # # centrado
             ('ALIGN', (2, 1), (2, -1), 'CENTER'),  # Cantidad centrada
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ]
 
@@ -564,7 +648,7 @@ class PDFGenerator:
         elements = []
 
         elements.append(Paragraph('<b>Firmas</b>', self.styles['SectionTitle']))
-        elements.append(Spacer(1, 0.15*inch))
+        elements.append(Spacer(1, 0.03*inch))
 
         # 4 ESPACIOS FIJOS (sin importar si hay datos o no)
         signatures = [
@@ -574,53 +658,46 @@ class PDFGenerator:
             'Nombre y firma de control patrimonial'
         ]
 
-        # Ancho de cada columna (4 espacios en total)
-        col_width = 5.5 * inch / 4
+        # Ancho total extendido para aprovechar el espacio horizontal disponible
+        total_width = 6.6 * inch
+        col_width = total_width / 4
 
         # Crear las 4 celdas de firma
         sig_cells = []
         for label in signatures:
-            # Cada celda contiene:
-            # 1. Espacio en blanco para firma manuscrita
-            # 2. Línea horizontal negra de 2 puntos
-            # 3. Texto estático del label
-
-            # Línea de firma
-            line_table = Table([['']], colWidths=[col_width - 0.3*inch])
+            line_table = Table([['']], colWidths=[col_width - 0.12*inch])
             line_table.setStyle(TableStyle([
-                ('LINEABOVE', (0, 0), (0, 0), 2, colors.black),  # Línea negra de 2 puntos
+                ('LINEABOVE', (0, 0), (0, 0), 1, colors.black),
             ]))
 
             cell_content = [
-                Spacer(1, 0.4*inch),  # Espacio para firma manuscrita
+                Spacer(1, 0.15*inch),
                 line_table,
-                Spacer(1, 0.08*inch),
                 Paragraph(
-                    f'<font size="8" color="#333333">{label}</font>',
+                    f'<font size="7" color="#333333">{label}</font>',
                     self.styles['Body_Custom']
                 ),
             ]
 
             sig_cells.append(cell_content)
 
-        # Crear tabla con las 4 firmas en una fila
-        # Cada celda contiene una mini-tabla vertical con los elementos
         cells_as_tables = []
         for cell_content in sig_cells:
-            mini_table = Table([[item] for item in cell_content], colWidths=[col_width - 0.2*inch])
+            mini_table = Table([[item] for item in cell_content], colWidths=[col_width - 0.08*inch])
             mini_table.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (0, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (0, -1), 'TOP'),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
             ]))
             cells_as_tables.append(mini_table)
 
-        # Tabla principal con las 4 columnas
         sig_table = Table([cells_as_tables], colWidths=[col_width] * 4)
         sig_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
         ]))
 
         elements.append(sig_table)
@@ -649,7 +726,7 @@ class PDFGenerator:
             ]))
 
             # Centrar tabla en página
-            center_table = Table([[qr_table]], colWidths=[5.5*inch])
+            center_table = Table([[qr_table]], colWidths=[5.1*inch])
             center_table.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ]))
@@ -662,7 +739,7 @@ class PDFGenerator:
                 '<font color="#666666" size="9">Código de Identificación</font>',
                 self.styles['Body_Custom']
             )
-            qr_text_table = Table([[qr_text]], colWidths=[5.5*inch])
+            qr_text_table = Table([[qr_text]], colWidths=[5.1*inch])
             qr_text_table.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ]))
@@ -683,82 +760,38 @@ class PDFGenerator:
 
         # Caja de notas con fondo gris claro
         notes_para = Paragraph(notes, self.styles['Body_Custom'])
-        notes_table = Table([[notes_para]], colWidths=[5.5*inch])
+        notes_table = Table([[notes_para]], colWidths=[5.1*inch])
         notes_table.setStyle(TableStyle([
             ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#cccccc')),
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f9f9f9')),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
         ]))
 
         elements.append(notes_table)
         return elements
 
-    def _build_footer_with_qr(self, qr_image_path: str):
-        """Construye el footer con QR y timestamp."""
+    def _build_footer(self):
+        """Construye el footer con solo el timestamp de generación."""
         elements = []
 
-        # Línea divisoria superior
-        line_data = [['']]
-        line_table = Table(line_data, colWidths=[5.5*inch])
+        line_table = Table([['']], colWidths=[5.1*inch])
         line_table.setStyle(TableStyle([
             ('LINEABOVE', (0, 0), (-1, 0), 1, colors.HexColor('#cccccc')),
         ]))
         elements.append(line_table)
-        elements.append(Spacer(1, 0.1*inch))
 
-        # QR Code + Timestamp en dos columnas
-        if Path(qr_image_path).exists():
-            # QR pequeño (1 inch)
-            qr_img = Image(qr_image_path, width=1*inch, height=1*inch)
-
-            # Tabla con QR con borde
-            qr_with_border = Table([[qr_img]], colWidths=[1.1*inch])
-            qr_with_border.setStyle(TableStyle([
-                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#333333')),
-                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-                ('TOPPADDING', (0, 0), (-1, -1), 3),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-                ('LEFTPADDING', (0, 0), (-1, -1), 3),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
-
-            # Texto de QR y timestamp - ACTUALIZADO
-            generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-            text_content = [
-                Paragraph('<font color="#333333" size="9"><b>Usa este QR para buscar este vale en el sistema</b></font>', self.styles['Body_Custom']),
-                Spacer(1, 0.05*inch),
-                Paragraph(f'<font color="#999999" size="8">Generado: {generated_at} UTC</font>', self.styles['Body_Custom'])
-            ]
-
-            text_table = Table([[e] for e in text_content], colWidths=[4.3*inch])
-            text_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
-
-            # Combinar QR y texto
-            footer_content = Table([[qr_with_border, text_table]], colWidths=[1.2*inch, 4.3*inch])
-            footer_content.setStyle(TableStyle([
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
-
-            elements.append(footer_content)
-        else:
-            # Solo timestamp si no hay QR
-            generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-            footer_para = Paragraph(
-                f'<font color="#999999" size="8">Generado: {generated_at} UTC</font>',
-                self.styles['Body_Custom']
-            )
-            footer_table = Table([[footer_para]], colWidths=[5.5*inch])
-            footer_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ]))
-            elements.append(footer_table)
+        generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        footer_para = Paragraph(
+            f'<font color="#999999" size="7">Generado: {generated_at} UTC</font>',
+            self.styles['Body_Custom']
+        )
+        footer_table = Table([[footer_para]], colWidths=[5.1*inch])
+        footer_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
+        elements.append(footer_table)
 
         return elements

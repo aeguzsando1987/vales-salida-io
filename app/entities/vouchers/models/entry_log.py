@@ -74,7 +74,7 @@ class EntryLog(Base):
     notes = Column(Text, nullable=True, comment="Observaciones adicionales")
 
     # Auditoría
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
     created_by = Column(
         Integer,
         ForeignKey("users.id"),

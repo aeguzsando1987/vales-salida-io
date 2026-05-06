@@ -142,7 +142,7 @@ class BaseRepository(Generic[T]):
         # Actualizar timestamp si existe
         if hasattr(db_obj, 'updated_at'):
             from datetime import datetime
-            db_obj.updated_at = datetime.utcnow()
+            db_obj.updated_at = datetime.now()
 
         self.db.commit()
         self.db.refresh(db_obj)
@@ -175,7 +175,7 @@ class BaseRepository(Generic[T]):
             db_obj.is_active = False
             if hasattr(db_obj, 'updated_at'):
                 from datetime import datetime
-                db_obj.updated_at = datetime.utcnow()
+                db_obj.updated_at = datetime.now()
             self.db.commit()
         else:
             # Hard delete: eliminar físicamente

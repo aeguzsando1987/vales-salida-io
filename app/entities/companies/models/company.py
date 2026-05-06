@@ -75,14 +75,14 @@ class Company(Base):
     is_deleted = Column(Boolean, default=False, nullable=False, index=True,
                        comment="Soft delete flag")
 
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False,
+    created_at = Column(DateTime, default=datetime.now, nullable=False,
                        comment="Fecha de creación del registro")
     created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"),
                        nullable=True,
                        comment="Usuario que creó el registro")
 
-    updated_at = Column(DateTime, default=datetime.utcnow,
-                       onupdate=datetime.utcnow, nullable=True,
+    updated_at = Column(DateTime, default=datetime.now,
+                       onupdate=datetime.now, nullable=True,
                        comment="Fecha de última actualización")
     updated_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"),
                        nullable=True,

@@ -1169,7 +1169,7 @@ class VoucherController:
 
             if voucher.qr_image_last_generated_at:
                 expiration = voucher.qr_image_last_generated_at + timedelta(hours=24)
-                qr_token_expired = datetime.utcnow() > expiration
+                qr_token_expired = datetime.now() > expiration
 
             return VoucherWithGenerationInfo(
                 **voucher.__dict__,

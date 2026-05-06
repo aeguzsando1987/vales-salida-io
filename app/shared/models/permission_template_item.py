@@ -58,7 +58,7 @@ class PermissionTemplateItem(Base):
     scope = Column(String(20), default="all", nullable=False)  # all, own, team, department, none
 
     # Auditoría (sin is_deleted ni updated_at según spec original)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
 
     # Relaciones
     template = relationship(

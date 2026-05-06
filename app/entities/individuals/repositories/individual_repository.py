@@ -201,7 +201,7 @@ class IndividualRepository(BaseRepository[Individual]):
         update_data = {
             'is_active': False,
             'is_deleted': True,
-            'deleted_at': datetime.utcnow(),
+            'deleted_at': datetime.now(),
             'deleted_by': deleted_by,
             'updated_by': deleted_by  # También actualizar updated_by
         }

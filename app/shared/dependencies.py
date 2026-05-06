@@ -472,7 +472,7 @@ def get_effective_permission(user_id: int, entity: str, action: str, db: Session
         if user_perm:
             # Verificar si el permiso temporal ha expirado
             if user_perm.valid_until:
-                if user_perm.valid_until < datetime.utcnow():
+                if user_perm.valid_until < datetime.now():
                     # Permiso expirado, continuar a template
                     pass
                 else:

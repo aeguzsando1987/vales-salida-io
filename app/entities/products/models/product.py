@@ -60,8 +60,8 @@ class Product(Base):
     is_deleted = Column(Boolean, default=False, nullable=False, index=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=True)
     deleted_at = Column(DateTime, nullable=True)
 
     # Audit fields (Foreign Keys to users)

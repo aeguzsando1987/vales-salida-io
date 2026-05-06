@@ -38,7 +38,7 @@ class UserPermission(Base):
             permission_id=8,  # "delete individuals"
             permission_level=4,
             scope="all",
-            valid_until=datetime.utcnow() + timedelta(hours=24),
+            valid_until=datetime.now() + timedelta(hours=24),
             granted_by=1,  # Admin user
             reason="Emergency data cleanup"
         )
@@ -68,7 +68,7 @@ class UserPermission(Base):
     scope = Column(String(20), default="all", nullable=False)  # all, own, team, department, none
 
     # Temporalidad del permiso
-    valid_from = Column(DateTime, default=datetime.utcnow, nullable=False)
+    valid_from = Column(DateTime, default=datetime.now, nullable=False)
     valid_until = Column(DateTime, nullable=True)  # NULL = permanente
 
     # Auditoría del otorgamiento
@@ -79,7 +79,7 @@ class UserPermission(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Auditoría temporal
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
 
     # Relaciones
     permission = relationship(
@@ -108,7 +108,7 @@ class UserPermission(Base):
         if self.valid_until is None:
             return True  # Permiso permanente
 
-        return datetime.utcnow() <= self.valid_until
+        return datetime.now() <= self.valid_until
 
     def to_dict(self):
         """Convierte el permiso de usuario a diccionario para serialización."""

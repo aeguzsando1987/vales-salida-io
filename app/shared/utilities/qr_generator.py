@@ -82,7 +82,7 @@ class QRGenerator:
         img = qr.make_image(fill_color="black", back_color="white")
 
         # Generar nombre de archivo con timestamp
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"qr_{voucher_id}_{timestamp}.png"
         filepath = self.output_dir / filename
 

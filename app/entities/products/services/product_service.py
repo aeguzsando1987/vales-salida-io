@@ -157,7 +157,7 @@ class ProductService:
             self.repository.update(product_id, {
                 'is_deleted': True,
                 'is_active': False,
-                'deleted_at': datetime.utcnow(),
+                'deleted_at': datetime.now(),
                 'deleted_by': user_id
             })
         else:

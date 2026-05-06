@@ -36,8 +36,8 @@ class State(Base):
     # Campos de auditoria
     is_active = Column(Boolean, default=True, nullable=False, comment="Indica si el estado esta activo")
     is_deleted = Column(Boolean, default=False, nullable=False, comment="Borrado logico")
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, comment="Fecha de creacion")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, comment="Fecha de ultima actualizacion")
+    created_at = Column(DateTime, default=datetime.now, nullable=False, comment="Fecha de creacion")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False, comment="Fecha de ultima actualizacion")
 
     def __repr__(self):
         return f"<State(id={self.id}, name={self.name}, code={self.code}, country_id={self.country_id})>"

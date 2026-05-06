@@ -478,15 +478,15 @@ class Individual(Base):
     # Timestamps automáticos (como en User model)
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=datetime.now,
         nullable=False,
         comment="Fecha y hora de creación del registro"
     )
 
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=datetime.now,
+        onupdate=datetime.now,
         nullable=False,
         comment="Fecha y hora de última actualización"
     )

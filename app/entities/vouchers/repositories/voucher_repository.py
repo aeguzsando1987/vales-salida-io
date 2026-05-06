@@ -153,49 +153,34 @@ class VoucherRepository(BaseRepository[Voucher]):
         except (ValueError, IndexError):
             return 0
 
-    def get_last_sequence_for_timestamp(
-        self,
-        company_id: int,
-        voucher_type: VoucherTypeEnum,
-        timestamp: str
-    ) -> int:
+    def get_last_sequence_for_month(self, month_label: str) -> int:
         """
-        Obtiene la última secuencia para un timestamp específico.
+        Obtiene el mayor número de secuencia usado en el mes indicado.
 
-        Formato de folio: {company_id}-{type}-{YYYYMMDDHHmmss}-{seq:02d}
-        Ejemplo: 2-SAL-20260119171530-01
+        Formato de folio: {seq} - (NombreMes/YYYY)
+        Ejemplo: 15 - (Mayo/2026)
 
         Args:
-            company_id: ID de la empresa
-            voucher_type: Tipo de voucher
-            timestamp: Timestamp en formato YYYYMMDDHHmmss
+            month_label: Etiqueta del mes (ej: 'Mayo/2026')
 
         Returns:
-            Última secuencia para ese timestamp (0 si no existe ninguna)
+            Mayor secuencia del mes (0 si no existe ninguno)
         """
-        # Tipo de voucher
-        type_code = "ENT" if voucher_type == VoucherTypeEnum.ENTRY else "SAL"
+        pattern = f'% - ({month_label})'
 
-        # Buscar vouchers con el mismo timestamp exacto
-        # Patrón: {company_id}-{type}-{timestamp}-%
-        pattern = f'{company_id}-{type_code}-{timestamp}-%'
-
-        last_voucher = self.db.query(Voucher).filter(
-            Voucher.company_id == company_id,
-            Voucher.voucher_type == voucher_type,
+        rows = self.db.query(Voucher.folio).filter(
             Voucher.folio.like(pattern)
-        ).order_by(Voucher.folio.desc()).first()
+        ).all()
 
-        if not last_voucher:
-            return 0
-
-        # Extraer la secuencia del folio (últimos 2 dígitos)
-        try:
-            # Formato: 2-SAL-20260119171530-01
-            seq_str = last_voucher.folio.split('-')[-1]
-            return int(seq_str)
-        except (ValueError, IndexError):
-            return 0
+        max_seq = 0
+        for (folio,) in rows:
+            try:
+                seq = int(folio.split(' ')[0])
+                if seq > max_seq:
+                    max_seq = seq
+            except (ValueError, IndexError):
+                pass
+        return max_seq
 
     # ==================== VALES VENCIDOS ====================
 

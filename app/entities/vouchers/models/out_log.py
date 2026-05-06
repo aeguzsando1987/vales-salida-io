@@ -72,7 +72,7 @@ class OutLog(Base):
     )
 
     # Auditoría
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
     created_by = Column(
         Integer,
         ForeignKey("users.id"),

@@ -118,6 +118,7 @@ def send_email_sync(
 
     # Enviar
     context = ssl.create_default_context()
+    logger.warning(f"[MAILER] Intentando envío → from={config['from_email']} to={recipients} server={config['server']}:{config['port']} tls={config['use_tls']}")
     try:
         if config["use_tls"]:
             with smtplib.SMTP(config["server"], config["port"], timeout=30) as server:
@@ -130,7 +131,7 @@ def send_email_sync(
                 server.login(config["username"], config["password"])
                 server.sendmail(config["from_email"], recipients, msg.as_string())
 
-        logger.info(f"[MAILER] Correo enviado a: {recipients}")
+        logger.warning(f"[MAILER] ✓ Correo entregado a Gmail → destinatarios: {recipients}")
     except Exception as e:
         logger.error(f"[MAILER] Error enviando correo: {e}")
         raise

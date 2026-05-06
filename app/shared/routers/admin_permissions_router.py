@@ -237,7 +237,7 @@ def get_user_permissions_with_details(
         # Verificar si está expirado
         is_expired = False
         if up.valid_until:
-            is_expired = up.valid_until < datetime.utcnow()
+            is_expired = up.valid_until < datetime.now()
 
         is_valid = up.is_active and not is_expired
 

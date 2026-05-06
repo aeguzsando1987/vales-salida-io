@@ -44,7 +44,7 @@ class PermissionTemplate(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Auditoría (sin is_deleted ni updated_at según spec original)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
 
     # Relaciones
     items = relationship(

@@ -108,7 +108,7 @@ class CompanyService:
 
         # Agregar campos de auditoría
         company_data["created_by"] = created_by_user_id
-        company_data["created_at"] = datetime.utcnow()
+        company_data["created_at"] = datetime.now()
 
         # Crear empresa
         try:
@@ -257,7 +257,7 @@ class CompanyService:
 
         # Agregar campos de auditoría
         company_data["updated_by"] = updated_by_user_id
-        company_data["updated_at"] = datetime.utcnow()
+        company_data["updated_at"] = datetime.now()
 
         # Actualizar
         try:
@@ -300,7 +300,7 @@ class CompanyService:
             update_data = {
                 "is_deleted": True,
                 "is_active": False,
-                "deleted_at": datetime.utcnow(),
+                "deleted_at": datetime.now(),
                 "deleted_by": deleted_by_user_id
             }
             self.repository.update(company_id, update_data)

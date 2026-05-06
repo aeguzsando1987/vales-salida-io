@@ -763,10 +763,10 @@ class IndividualService:
                 # Soft delete del usuario
                 user.is_active = False
                 user.is_deleted = True
-                user.deleted_at = datetime.utcnow()
+                user.deleted_at = datetime.now()
                 user.deleted_by = deleted_by
                 user.updated_by = deleted_by
-                user.updated_at = datetime.utcnow()
+                user.updated_at = datetime.now()
                 # No hacer commit aquí, será parte de la transacción del delete de Individual
 
     # ==================== MÉTODOS DE MAPEO PARA COMPATIBILIDAD ====================

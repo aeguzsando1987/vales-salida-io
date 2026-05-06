@@ -123,8 +123,8 @@ def generate_pdf_task(self, voucher_id: int) -> dict:
         logger.info(f"[TASK PDF] PDF generado: {pdf_path}")
 
         # Actualizar timestamps en voucher
-        voucher.pdf_last_generated_at = datetime.utcnow()
-        voucher.qr_image_last_generated_at = datetime.utcnow()
+        voucher.pdf_last_generated_at = datetime.now()
+        voucher.qr_image_last_generated_at = datetime.now()
         self.db.commit()
 
         # Obtener tamaño del archivo
@@ -134,7 +134,7 @@ def generate_pdf_task(self, voucher_id: int) -> dict:
             'pdf_path': pdf_path,
             'qr_path': qr_path,
             'file_size': file_size,
-            'generated_at': datetime.utcnow().isoformat()
+            'generated_at': datetime.now().isoformat()
         }
 
         logger.info(f"[TASK PDF] Completado exitosamente para voucher_id={voucher_id}")
@@ -208,13 +208,13 @@ def generate_qr_task(self, voucher_id: int) -> dict:
         logger.info(f"[TASK QR] QR generado: {qr_path}")
 
         # Actualizar timestamp
-        voucher.qr_image_last_generated_at = datetime.utcnow()
+        voucher.qr_image_last_generated_at = datetime.now()
         self.db.commit()
 
         result = {
             'qr_path': qr_path,
             'token': voucher.qr_token,
-            'generated_at': datetime.utcnow().isoformat()
+            'generated_at': datetime.now().isoformat()
         }
 
         logger.info(f"[TASK QR] Completado exitosamente para voucher_id={voucher_id}")
@@ -319,8 +319,15 @@ def send_voucher_email_task(self, voucher_id: int) -> dict:
         if creator_individual:
             if creator_individual.email:
                 recipients.append(creator_individual.email)
-            if creator_individual.direct_supervisor and creator_individual.direct_supervisor.email:
-                recipients.append(creator_individual.direct_supervisor.email)
+            # Query explícita para evitar problemas de lazy loading en Celery
+            if creator_individual.direct_supervisor_id:
+                supervisor = self.db.query(Individual).filter(
+                    Individual.id == creator_individual.direct_supervisor_id,
+                    Individual.is_deleted == False
+                ).first()
+                if supervisor and supervisor.email:
+                    recipients.append(supervisor.email)
+                    logger.info(f"[TASK EMAIL CREATED] Supervisor: {supervisor.email}")
 
         if not recipients:
             logger.warning(f"[TASK EMAIL CREATED] Sin destinatarios para voucher_id={voucher_id}")
@@ -422,8 +429,15 @@ def send_voucher_approved_email_task(self, voucher_id: int) -> dict:
         if creator_individual:
             if creator_individual.email:
                 recipients.append(creator_individual.email)
-            if creator_individual.io_manager and creator_individual.io_manager.email:
-                recipients.append(creator_individual.io_manager.email)
+            # Query explícita para evitar problemas de lazy loading en Celery
+            if creator_individual.io_manager_id:
+                io_manager = self.db.query(Individual).filter(
+                    Individual.id == creator_individual.io_manager_id,
+                    Individual.is_deleted == False
+                ).first()
+                if io_manager and io_manager.email:
+                    recipients.append(io_manager.email)
+                    logger.info(f"[TASK EMAIL APPROVED] IO Manager: {io_manager.email}")
 
         if not recipients:
             logger.warning(f"[TASK EMAIL APPROVED] Sin destinatarios para voucher_id={voucher_id}")

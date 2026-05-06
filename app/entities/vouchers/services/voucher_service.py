@@ -111,48 +111,42 @@ class VoucherService:
 
     # ==================== GENERACIÓN DE FOLIOS ====================
 
-    def _generate_folio(
-        self,
-        company_id: int,
-        voucher_type: VoucherTypeEnum
-    ) -> str:
-        """
-        Genera folio único: {company_id}-{type}-{YYYYMMDDHHmmss}-{seq:02d}
+    _MESES_ES = {
+        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+    }
 
-        Formato con timestamp completo para garantizar unicidad absoluta.
-        Incluye secuencia corta (01-99) para manejar concurrencia en el mismo segundo.
+    def _month_label(self, dt: datetime) -> str:
+        """Retorna la etiqueta de mes en español: 'Mayo/2026'."""
+        return f"{self._MESES_ES[dt.month]}/{dt.year}"
+
+    def _generate_folio(self) -> str:
+        """
+        Genera folio: {seq} - (NombreMes/YYYY)
+
+        El contador es global y se reinicia automáticamente cada mes.
 
         Ejemplos:
-            2-SAL-20260119171530-01  (EXIT, empresa 2)
-            3-ENT-20260119171532-01  (ENTRY, empresa 3)
-            2-SAL-20260119171530-02  (EXIT, empresa 2, segundo vale en mismo segundo)
-
-        Args:
-            company_id: ID de la empresa
-            voucher_type: ENTRY o EXIT
-
-        Returns:
-            Folio único generado
+            1 - (Mayo/2026)
+            2 - (Mayo/2026)
+            15 - (Junio/2026)
         """
-        # Tipo de voucher
-        type_code = "ENT" if voucher_type == VoucherTypeEnum.ENTRY else "SAL"
-
-        # Obtener timestamp actual completo: YYYYMMDDHHmmss
         now = datetime.now()
-        timestamp = now.strftime('%Y%m%d%H%M%S')
+        month_label = self._month_label(now)
+        last_seq = self.repository.get_last_sequence_for_month(month_label)
+        return f"{last_seq + 1} - ({month_label})"
 
-        # Obtener última secuencia para este timestamp exacto
-        last_seq = self.repository.get_last_sequence_for_timestamp(
-            company_id=company_id,
-            voucher_type=voucher_type,
-            timestamp=timestamp
-        )
-        next_seq = last_seq + 1
-
-        # Formatear folio: 2-SAL-20260119171530-01
-        folio = f"{company_id}-{type_code}-{timestamp}-{next_seq:02d}"
-
-        return folio
+    def get_current_month_counter(self) -> dict:
+        """Retorna el estado del contador del mes actual para auditoría."""
+        now = datetime.now()
+        month_label = self._month_label(now)
+        current = self.repository.get_last_sequence_for_month(month_label)
+        return {
+            "month": month_label,
+            "last_sequence": current,
+            "next_folio": f"{current + 1} - ({month_label})"
+        }
 
     # ==================== GENERACIÓN DE QR ====================
 
@@ -258,7 +252,7 @@ class VoucherService:
             missing_items_description=missing_items_description,
             notes=notes,
             created_by=created_by_user_id,
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
 
         self.db.add(entry_log)
@@ -313,7 +307,7 @@ class VoucherService:
             scanned_by_id=scanned_by_id,
             observations=observations,
             created_by=created_by_user_id,
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
 
         self.db.add(out_log)
@@ -464,7 +458,7 @@ class VoucherService:
 
         # Auditoria
         voucher.updated_by = confirming_user_id
-        voucher.updated_at = datetime.utcnow()
+        voucher.updated_at = datetime.now()
 
         # Commit atomico
         self.db.commit()
@@ -594,7 +588,7 @@ class VoucherService:
 
         # Auditoria
         voucher.updated_by = validating_user_id
-        voucher.updated_at = datetime.utcnow()
+        voucher.updated_at = datetime.now()
 
         # Commit atomico
         self.db.commit()
@@ -697,10 +691,7 @@ class VoucherService:
                 )
 
         # Generar folio único
-        folio = self._generate_folio(
-            company_id=voucher_data.company_id,
-            voucher_type=voucher_data.voucher_type
-        )
+        folio = self._generate_folio()
 
         # Crear voucher
         new_voucher = Voucher(
@@ -823,7 +814,7 @@ class VoucherService:
             setattr(voucher, field, value)
 
         voucher.updated_by = updated_by_user_id
-        voucher.updated_at = datetime.utcnow()
+        voucher.updated_at = datetime.now()
 
         self.db.commit()
         self.db.refresh(voucher)
@@ -1000,8 +991,12 @@ class VoucherService:
                 raise EntityNotFoundError("Individual", approve_data.approved_by_id)
             voucher.approved_by_id = approve_data.approved_by_id
         else:
-            # Si no se proporciona, queda como NULL
-            voucher.approved_by_id = None
+            # Auto-poblar desde el usuario autenticado
+            individual = self.db.query(Individual).filter(
+                Individual.user_id == approved_by_user_id,
+                Individual.is_deleted == False
+            ).first()
+            voucher.approved_by_id = individual.id if individual else None
 
         # Cambiar estado
         voucher.status = VoucherStatusEnum.APPROVED
@@ -1014,7 +1009,7 @@ class VoucherService:
                 voucher.internal_notes = f"[APROBACIÓN] {approve_data.notes}"
 
         voucher.updated_by = approved_by_user_id
-        voucher.updated_at = datetime.utcnow()
+        voucher.updated_at = datetime.now()
 
         self.db.commit()
         self.db.refresh(voucher)
@@ -1080,7 +1075,7 @@ class VoucherService:
         # Cambiar estado
         voucher.status = VoucherStatusEnum.CLOSED
         voucher.updated_by = closed_by_user_id
-        voucher.updated_at = datetime.utcnow()
+        voucher.updated_at = datetime.now()
 
         self.db.commit()
         self.db.refresh(voucher)
@@ -1114,7 +1109,7 @@ class VoucherService:
         if system_user_id:
             voucher.updated_by = system_user_id
 
-        voucher.updated_at = datetime.utcnow()
+        voucher.updated_at = datetime.now()
 
         self.db.commit()
         self.db.refresh(voucher)
@@ -1168,7 +1163,7 @@ class VoucherService:
             voucher.internal_notes = f"[CANCELADO] {cancel_data.cancellation_reason}"
 
         voucher.updated_by = cancelled_by_user_id
-        voucher.updated_at = datetime.utcnow()
+        voucher.updated_at = datetime.now()
 
         self.db.commit()
         self.db.refresh(voucher)
@@ -1355,6 +1350,7 @@ class VoucherService:
             joinedload(Voucher.delivered_by),
             joinedload(Voucher.approved_by),
             joinedload(Voucher.received_by),
+            joinedload(Voucher.creator),
             joinedload(Voucher.details),
             joinedload(Voucher.entry_log),
             joinedload(Voucher.out_log)
@@ -1365,6 +1361,16 @@ class VoucherService:
 
         if not voucher:
             raise EntityNotFoundError("Voucher", voucher_id)
+
+        # Adjuntar Individual del creador para obtener nombre completo en el PDF
+        if voucher.created_by:
+            creator_individual = self.db.query(Individual).filter(
+                Individual.user_id == voucher.created_by,
+                Individual.is_deleted == False
+            ).first()
+            voucher._creator_individual = creator_individual
+        else:
+            voucher._creator_individual = None
 
         return voucher
 
@@ -1383,7 +1389,7 @@ class VoucherService:
 
         from datetime import timedelta
         expiration_time = voucher.qr_image_last_generated_at + timedelta(hours=24)
-        return datetime.utcnow() > expiration_time
+        return datetime.now() > expiration_time
 
     def initiate_pdf_generation(self, voucher_id: int, current_user_id: int) -> dict:
         """

@@ -133,7 +133,7 @@ def get_voucher(
     description="Busca un voucher por su folio único"
 )
 def get_voucher_by_folio(
-    folio: str = Path(..., min_length=10, max_length=50, description="Folio del voucher"),
+    folio: str = Path(..., min_length=5, max_length=50, description="Folio del voucher"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("vouchers", "get", min_level=1))
 ):
@@ -666,6 +666,28 @@ def get_statistics(
 
 
 # ==================== UTILITY ENDPOINTS ====================
+
+@router.get(
+    "/counter/current-month",
+    summary="Contador de folios del mes actual",
+    description="Retorna el estado del contador mensual de folios"
+)
+def get_monthly_counter(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "list", min_level=1))
+):
+    """
+    Retorna el estado del contador mensual:
+    - month: mes actual en formato MM-YYYY
+    - last_sequence: último número asignado este mes
+    - next_folio: próximo folio que se generaría
+
+    El contador se reinicia automáticamente el primer día de cada mes.
+    """
+    from app.entities.vouchers.services.voucher_service import VoucherService
+    service = VoucherService(db)
+    return service.get_current_month_counter()
+
 
 @router.get(
     "/utils/enums",

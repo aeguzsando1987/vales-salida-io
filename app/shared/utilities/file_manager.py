@@ -86,7 +86,7 @@ class FileManager:
             >>> count = FileManager.cleanup_old_files("temp_files/pdfs", max_age_minutes=60)
             >>> print(f"Eliminados {count} archivos")
         """
-        cutoff = datetime.utcnow() - timedelta(minutes=max_age_minutes)
+        cutoff = datetime.now() - timedelta(minutes=max_age_minutes)
         directory_path = Path(directory)
 
         if not directory_path.exists():
@@ -168,7 +168,7 @@ class FileManager:
             raise FileNotFoundError(f"Archivo no encontrado: {filepath}")
 
         file_time = datetime.fromtimestamp(filepath_obj.stat().st_mtime)
-        age = datetime.utcnow() - file_time
+        age = datetime.now() - file_time
 
         return int(age.total_seconds() / 60)
 

@@ -87,14 +87,14 @@ class UserPermissionService:
         # Calcular fecha de expiración si es temporal
         valid_until = None
         if hours:
-            valid_until = datetime.utcnow() + timedelta(hours=hours)
+            valid_until = datetime.now() + timedelta(hours=hours)
 
         # Crear user permission
         user_permission = UserPermission(
             user_id=user_id,
             permission_id=permission_id,
             permission_level=level,
-            valid_from=datetime.utcnow(),
+            valid_from=datetime.now(),
             valid_until=valid_until,
             granted_by=granted_by_user_id,
             reason=reason,
@@ -342,7 +342,7 @@ class UserPermissionService:
         expired_permissions = self.db.query(UserPermission).filter(
             UserPermission.is_active == True,
             UserPermission.valid_until.isnot(None),
-            UserPermission.valid_until < datetime.utcnow()
+            UserPermission.valid_until < datetime.now()
         ).all()
 
         count = 0
@@ -403,7 +403,7 @@ class UserPermissionService:
             if user_override:
                 # Verificar si está expirado
                 if user_override.valid_until:
-                    is_expired = user_override.valid_until < datetime.utcnow()
+                    is_expired = user_override.valid_until < datetime.now()
                     source = "template" if is_expired else "user_override"
                 else:
                     source = "user_override"
