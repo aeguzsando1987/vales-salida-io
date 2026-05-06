@@ -223,6 +223,7 @@ services:
       # IP o dominio del servidor - se usa para generar el certificado SSL
       SERVER_IP: ${SERVER_IP:-26.32.18.150}
       LOCAL_IP: ${LOCAL_IP:-192.168.1.10}
+      SERVER_DOMAIN: ${SERVER_DOMAIN:-}
     ports:
       - "8080:80"   # HTTP → redirige a HTTPS
       - "443:443"   # HTTPS
