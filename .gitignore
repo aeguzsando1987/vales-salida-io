@@ -24,6 +24,10 @@ temp_files/
 *.pdf
 *.png
 
+# Excepción: recursos gráficos versionados (logo para el PDF)
+!app/shared/assets/
+!app/shared/assets/*.png
+
 # IDEs
 .vscode/
 .idea/
