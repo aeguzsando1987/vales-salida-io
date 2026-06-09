@@ -679,37 +679,56 @@ class PDFGenerator:
         # Título de sección
         elements.append(Paragraph('<b>Artículos / Material</b>', self.styles['SectionTitle']))
 
+        # Estilo de celda más compacto para que entren todas las columnas
+        cell_style = ParagraphStyle(
+            'DetailCell',
+            parent=self.styles['Body_Custom'],
+            fontSize=6,
+            leading=7.5,
+        )
+
         # Encabezados de tabla
         table_data = [[
-            Paragraph('<b>#</b>', self.styles['Body_Custom']),
-            Paragraph('<b>Artículo</b>', self.styles['Body_Custom']),
-            Paragraph('<b>Cantidad</b>', self.styles['Body_Custom']),
-            Paragraph('<b>Unidad</b>', self.styles['Body_Custom']),
-            Paragraph('<b>Observaciones</b>', self.styles['Body_Custom'])
+            Paragraph('<b>#</b>', cell_style),
+            Paragraph('<b>Artículo</b>', cell_style),
+            Paragraph('<b>Descripción</b>', cell_style),
+            Paragraph('<b>No. Serie</b>', cell_style),
+            Paragraph('<b>Cantidad</b>', cell_style),
+            Paragraph('<b>Unidad</b>', cell_style),
+            Paragraph('<b>Observaciones</b>', cell_style)
         ]]
 
         # Filas de datos
         for detail in details:
             table_data.append([
-                Paragraph(str(detail.line_number), self.styles['Body_Custom']),
-                Paragraph(detail.item_name, self.styles['Body_Custom']),
-                Paragraph(str(detail.quantity), self.styles['Body_Custom']),
-                Paragraph(detail.unit_of_measure or 'PZA', self.styles['Body_Custom']),
-                Paragraph(detail.notes or '', self.styles['Body_Custom'])
+                Paragraph(str(detail.line_number), cell_style),
+                Paragraph(detail.item_name or '', cell_style),
+                Paragraph(getattr(detail, 'item_description', None) or '—', cell_style),
+                Paragraph(detail.serial_number or '—', cell_style),
+                Paragraph(str(detail.quantity), cell_style),
+                Paragraph(detail.unit_of_measure or 'PZA', cell_style),
+                Paragraph(detail.notes or '', cell_style)
             ])
 
-        # Crear tabla
-        details_table = Table(table_data, colWidths=[0.35*inch, 2.8*inch, 0.85*inch, 0.85*inch, 1.75*inch])
+        # Crear tabla (7 columnas, ancho total ~6.6 in)
+        details_table = Table(
+            table_data,
+            colWidths=[0.28*inch, 1.5*inch, 1.5*inch, 0.85*inch, 0.6*inch, 0.5*inch, 1.37*inch]
+        )
 
         # Estilos base
         style_commands = [
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),  # Header
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('FONTSIZE', (0, 0), (-1, -1), 6),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),  # Header centrado
             ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # # centrado
-            ('ALIGN', (2, 1), (2, -1), 'CENTER'),  # Cantidad centrada
+            ('ALIGN', (3, 1), (3, -1), 'CENTER'),  # No. Serie centrada
+            ('ALIGN', (4, 1), (4, -1), 'CENTER'),  # Cantidad centrada
+            ('ALIGN', (5, 1), (5, -1), 'CENTER'),  # Unidad centrada
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
             ('TOPPADDING', (0, 0), (-1, -1), 2),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),

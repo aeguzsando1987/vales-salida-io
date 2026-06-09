@@ -155,6 +155,8 @@ class VoucherController:
                 response.approved_by_name = voucher.approved_by.full_name if voucher.approved_by else None
                 response.delivered_by_name = voucher.delivered_by.full_name if voucher.delivered_by else None
                 response.received_by_name = voucher.received_by.full_name if voucher.received_by else None
+                response.origin_branch_name = voucher.origin_branch.branch_name if voucher.origin_branch else None
+                response.destination_branch_name = voucher.destination_branch.branch_name if voucher.destination_branch else None
                 return response
 
             # Si solo se solicita información detallada (sin líneas)
@@ -164,6 +166,8 @@ class VoucherController:
                 response.approved_by_name = voucher.approved_by.full_name if voucher.approved_by else None
                 response.delivered_by_name = voucher.delivered_by.full_name if voucher.delivered_by else None
                 response.received_by_name = voucher.received_by.full_name if voucher.received_by else None
+                response.origin_branch_name = voucher.origin_branch.branch_name if voucher.origin_branch else None
+                response.destination_branch_name = voucher.destination_branch.branch_name if voucher.destination_branch else None
                 return response
 
             # Respuesta básica
