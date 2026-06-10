@@ -236,8 +236,8 @@ def list_vouchers(
 @router.post(
     "/{voucher_id}/approve",
     response_model=VoucherResponse,
-    summary="Aprobar voucher",
-    description="Transición: PENDING → APPROVED"
+    summary="Aprobar voucher (1ª aprobación: jefe directo)",
+    description="Transición: PENDING → PENDING_IO_APPROVAL"
 )
 def approve_voucher(
     voucher_id: int = Path(..., gt=0, description="ID del voucher"),
@@ -246,20 +246,42 @@ def approve_voucher(
     current_user: User = Depends(require_permission("vouchers", "approve", min_level=3))
 ):
     """
-    Aprueba un voucher: PENDING → APPROVED
-
-    Requerido para:
-    - Vales EXIT antes de escanear QR
-    - Vales ENTRY (opcional según flujo de negocio)
+    Primera aprobación (jefe directo): PENDING → PENDING_IO_APPROVAL
 
     Validaciones:
     - Estado actual es PENDING
-    - approved_by existe
+    - El aprobador es el jefe directo (direct_supervisor) del creador (bypass Admin)
 
     Permisos requeridos: vouchers:approve (nivel 3+)
     """
     controller = VoucherController(db)
     return controller.approve(voucher_id, approve_data, current_user.id, current_user.role)
+
+
+@router.post(
+    "/{voucher_id}/approve-io",
+    response_model=VoucherResponse,
+    summary="Aprobación de contraloría (2ª aprobación: io manager)",
+    description="Transición: PENDING_IO_APPROVAL → APPROVED"
+)
+def approve_io_voucher(
+    voucher_id: int = Path(..., gt=0, description="ID del voucher"),
+    approve_data: VoucherApprove = Body(..., description="Datos de aprobación (notas opcionales)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("vouchers", "approve_io", min_level=3))
+):
+    """
+    Segunda aprobación (contraloría): PENDING_IO_APPROVAL → APPROVED
+
+    Validaciones:
+    - Estado actual es PENDING_IO_APPROVAL
+    - El aprobador pertenece (activo) a la tabla io_managers — NO depende del rol
+
+    Permisos requeridos: vouchers:approve_io (nivel 3+); el gate real es la
+    pertenencia a io_managers.
+    """
+    controller = VoucherController(db)
+    return controller.approve_io(voucher_id, approve_data, current_user.id, current_user.role)
 
 
 @router.post(

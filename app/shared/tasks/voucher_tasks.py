@@ -389,6 +389,85 @@ def send_voucher_email_task(self, voucher_id: int) -> dict:
         return {"status": "error", "reason": str(e)}
 
 
+@celery_app.task(base=DatabaseTask, bind=True, name='voucher_tasks.send_voucher_pending_io_email')
+def send_voucher_pending_io_email_task(self, voucher_id: int) -> dict:
+    """
+    Notifica que un vale recibió la 1ª aprobación (jefe directo) y queda pendiente
+    de la aprobación de contraloría. Sin PDF.
+
+    Envía a TODOS los contralores (io managers) activos registrados en io_managers.
+    Se dispara cuando un vale pasa a PENDING_IO_APPROVAL.
+    """
+    try:
+        logger.info(f"[TASK EMAIL PENDING-IO] Iniciando para voucher_id={voucher_id}")
+
+        from app.shared.email.mailer import get_email_config, send_email_sync
+        from app.entities.io_managers.repositories.io_manager_repository import IOManagerRepository
+
+        config = get_email_config(self.db)
+
+        if not config.get("enabled"):
+            logger.info(f"[TASK EMAIL PENDING-IO] Email desactivado, omitiendo voucher_id={voucher_id}")
+            return {"status": "skipped", "reason": "email_disabled"}
+
+        if not config.get("username") or not config.get("password"):
+            logger.warning(f"[TASK EMAIL PENDING-IO] Credenciales SMTP no configuradas, omitiendo")
+            return {"status": "skipped", "reason": "smtp_not_configured"}
+
+        voucher = self.db.query(Voucher).filter(Voucher.id == voucher_id).first()
+        if not voucher:
+            return {"status": "error", "reason": "voucher_not_found"}
+
+        # Destinatarios: TODOS los contralores activos
+        recipients = []
+        for io_manager in IOManagerRepository(self.db).list_active():
+            individual = self.db.query(Individual).filter(
+                Individual.id == io_manager.individual_id,
+                Individual.is_deleted == False
+            ).first()
+            if individual and individual.email:
+                recipients.append(individual.email)
+
+        if not recipients:
+            logger.warning(f"[TASK EMAIL PENDING-IO] Sin contralores con correo para voucher_id={voucher_id}")
+            return {"status": "skipped", "reason": "no_recipients"}
+
+        server_ip = getattr(settings, "server_ip", "localhost")
+        app_url = f"https://{server_ip}"
+        voucher_url = f"{app_url}/my-vouchers/{voucher_id}"
+
+        company_name = voucher.company.company_name if voucher.company else "N/D"
+        approved_by_name = voucher.approved_by.full_name if voucher.approved_by else "N/D"
+        voucher_type_display = "SALIDA" if voucher.voucher_type.value == "EXIT" else "ENTRADA"
+
+        html_body = (
+            f'<div style="font-family:Arial,sans-serif;padding:24px;">'
+            f'<h2>🕓 Vale pendiente de contraloría: {voucher.folio}</h2>'
+            f'<p>El vale recibió la primera aprobación de su jefe directo y requiere ahora '
+            f'la <strong>aprobación de contraloría</strong>.</p>'
+            f'<p><strong>Tipo:</strong> {voucher_type_display}</p>'
+            f'<p><strong>Empresa:</strong> {company_name}</p>'
+            f'<p><strong>1ª aprobación (jefe directo):</strong> {approved_by_name}</p>'
+            f'<p><a href="{voucher_url}">Ver Vale y Aprobar Contraloría →</a></p>'
+            f'</div>'
+        )
+
+        unique_recipients = list(set(recipients))
+        send_email_sync(
+            config=config,
+            recipients=unique_recipients,
+            subject=f"Vale pendiente de contraloría: {voucher.folio} — {voucher_type_display}",
+            html_body=html_body
+        )
+
+        logger.info(f"[TASK EMAIL PENDING-IO] Enviado a {unique_recipients} para {voucher.folio}")
+        return {"status": "sent", "folio": voucher.folio, "recipients": unique_recipients}
+
+    except Exception as e:
+        logger.error(f"[TASK EMAIL PENDING-IO] Error en voucher_id={voucher_id}: {e}", exc_info=True)
+        return {"status": "error", "reason": str(e)}
+
+
 @celery_app.task(base=DatabaseTask, bind=True, name='voucher_tasks.send_voucher_approved_email')
 def send_voucher_approved_email_task(self, voucher_id: int) -> dict:
     """
@@ -419,7 +498,8 @@ def send_voucher_approved_email_task(self, voucher_id: int) -> dict:
         if not voucher:
             return {"status": "error", "reason": "voucher_not_found"}
 
-        # Destinatarios: creador + io_manager (NO jefe directo)
+        # Destinatarios del correo de aprobación FINAL: creador + su jefe directo.
+        # (Ya NO depende de io_manager_id; la doble aprobación usa la tabla io_managers.)
         recipients = []
         creator_individual = self.db.query(Individual).filter(
             Individual.user_id == voucher.created_by,
@@ -430,14 +510,14 @@ def send_voucher_approved_email_task(self, voucher_id: int) -> dict:
             if creator_individual.email:
                 recipients.append(creator_individual.email)
             # Query explícita para evitar problemas de lazy loading en Celery
-            if creator_individual.io_manager_id:
-                io_manager = self.db.query(Individual).filter(
-                    Individual.id == creator_individual.io_manager_id,
+            if creator_individual.direct_supervisor_id:
+                supervisor = self.db.query(Individual).filter(
+                    Individual.id == creator_individual.direct_supervisor_id,
                     Individual.is_deleted == False
                 ).first()
-                if io_manager and io_manager.email:
-                    recipients.append(io_manager.email)
-                    logger.info(f"[TASK EMAIL APPROVED] IO Manager: {io_manager.email}")
+                if supervisor and supervisor.email:
+                    recipients.append(supervisor.email)
+                    logger.info(f"[TASK EMAIL APPROVED] Jefe directo: {supervisor.email}")
 
         if not recipients:
             logger.warning(f"[TASK EMAIL APPROVED] Sin destinatarios para voucher_id={voucher_id}")

@@ -27,6 +27,7 @@ from app.entities.branches.routers.branch_router import router as branch_router
 from app.entities.products.routers.product_router import router as product_router
 from app.entities.vouchers.routers.voucher_router import router as voucher_router
 from app.entities.voucher_details.routers.voucher_detail_router import router as voucher_detail_router
+from app.entities.io_managers.routers.io_manager_router import router as io_manager_router
 from app.shared.routers.admin_permissions_router import router as admin_permissions_router
 from app.shared.routers.email_config_router import router as email_config_router
 
@@ -45,6 +46,7 @@ app = FastAPI(
         {"name": "Branches", "description": "Gestión de sucursales/ubicaciones"},
         {"name": "Products", "description": "Gestión de productos (cache opcional)"},
         {"name": "Voucher Details", "description": "Gestión de líneas de detalle de vales (artículos)"},
+        {"name": "IO Managers (Contralores)", "description": "Gestión de contralores para la 2ª aprobación de vales"},
         {"name": "Admin - User Permissions", "description": "Gestión de permisos a nivel de usuario (Fase 3)"},
         {"name": "Admin - Email Config", "description": "Configuración de correo electrónico SMTP"},
         {"name": "health", "description": "Estado del sistema"}
@@ -131,6 +133,8 @@ app.include_router(branch_router)
 app.include_router(product_router)
 app.include_router(voucher_router)
 app.include_router(voucher_detail_router)
+# Incluir router de gestión de contralores (io managers)
+app.include_router(io_manager_router)
 # Incluir router de administración de permisos (Phase 3)
 app.include_router(admin_permissions_router)
 # Incluir router de configuración de correo
@@ -251,7 +255,9 @@ def get_current_user(db: Session = Depends(get_db), current_user_id: int = Depen
         "updated_at": user.updated_at,
         "company_id": None,
         "allowed_company_ids": [],
-        "accessible_company_ids": []
+        "accessible_company_ids": [],
+        "individual_id": None,
+        "is_io_manager": False,
     }
 
     # Agregar información de empresas si existe Individual
@@ -259,6 +265,11 @@ def get_current_user(db: Session = Depends(get_db), current_user_id: int = Depen
         response["company_id"] = individual.company_id
         response["allowed_company_ids"] = individual.allowed_company_ids or []
         response["accessible_company_ids"] = individual.accessible_company_ids  # Propiedad computada
+        response["individual_id"] = individual.id
+        # Flag SOLO-UI: ¿el usuario es contralor (io manager)? El gate real de la 2ª
+        # aprobación vive en el backend (approve_io_voucher), no en este flag.
+        from app.entities.io_managers.repositories.io_manager_repository import IOManagerRepository
+        response["is_io_manager"] = IOManagerRepository(db).exists_active_for_individual(individual.id)
 
     return response
 

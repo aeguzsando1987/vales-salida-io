@@ -253,6 +253,9 @@ def initialize_permissions(db: Session):
             'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
             # Workflow - acciones principales
             'approve': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            # 2ª aprobación (contraloría). El permiso espeja a 'approve', pero el gate REAL
+            # es la pertenencia activa a io_managers (se valida en el service), no el rol.
+            'approve_io': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
             'cancel': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 0},
             'validate_exit': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 3},
             'confirm_entry': {'Admin': 4, 'Manager': 3, 'Collaborator': 3, 'Reader': 0, 'Guest': 0, 'Checker': 3},
@@ -295,6 +298,12 @@ def initialize_permissions(db: Session):
             'delete': {'Admin': 4, 'Manager': 4, 'Collaborator': 2, 'Reader': 2, 'Guest': 0, 'Checker': 0},
             'voucher': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
             'products': {'Admin': 4, 'Manager': 1, 'Collaborator': 1, 'Reader': 1, 'Guest': 0, 'Checker': 1},
+        },
+        # === IO-MANAGERS (Contralores) — gestión reservada a Admin ===
+        'io-managers': {
+            'create': {'Admin': 4, 'Manager': 0, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'list': {'Admin': 4, 'Manager': 0, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
+            'delete': {'Admin': 4, 'Manager': 0, 'Collaborator': 0, 'Reader': 0, 'Guest': 0, 'Checker': 0},
         },
         # === COMPANIES ===
         'companies': {

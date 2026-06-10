@@ -210,6 +210,7 @@ class VoucherResponse(BaseModel):
 
     # Firmas digitales
     approved_by_id: Optional[int]
+    io_approved_by_id: Optional[int] = None
     delivered_by_id: int
     received_by_id: Optional[int]
 
@@ -218,6 +219,10 @@ class VoucherResponse(BaseModel):
     is_intercompany: bool
     estimated_return_date: Optional[date]
     actual_return_date: Optional[date]
+
+    # Timestamps de doble aprobación
+    first_approved_at: Optional[datetime] = None
+    io_approved_at: Optional[datetime] = None
 
     # Info adicional
     notes: Optional[str]
@@ -248,6 +253,7 @@ class VoucherDetailedResponse(VoucherResponse):
 
     # Nombres de firmas digitales
     approved_by_name: Optional[str] = None
+    io_approved_by_name: Optional[str] = None
     delivered_by_name: Optional[str] = None
     received_by_name: Optional[str] = None
 

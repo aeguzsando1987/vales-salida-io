@@ -979,10 +979,29 @@ class VoucherService:
         # Validar estado
         if voucher.status != VoucherStatusEnum.PENDING:
             raise BusinessRuleError(
-                f"Solo se pueden aprobar vouchers en estado PENDING. Estado actual: {voucher.status.value}"
+                f"Solo se puede dar la primera aprobación a vouchers en estado PENDING. Estado actual: {voucher.status.value}"
             )
 
-        # Validar aprobador existe (solo si se proporciona)
+        # Individual del usuario autenticado que aprueba
+        approver_individual = self.db.query(Individual).filter(
+            Individual.user_id == approved_by_user_id,
+            Individual.is_deleted == False
+        ).first()
+
+        # NIVEL 1: la 1ª aprobación SOLO la puede dar el jefe directo del creador
+        # (bypass para Admin, rol == 1).
+        if role != 1:
+            creator_individual = self.db.query(Individual).filter(
+                Individual.user_id == voucher.created_by,
+                Individual.is_deleted == False
+            ).first()
+            supervisor_id = creator_individual.direct_supervisor_id if creator_individual else None
+            if not approver_individual or not supervisor_id or approver_individual.id != supervisor_id:
+                raise BusinessRuleError(
+                    "Solo el jefe directo del creador puede dar la primera aprobación de este vale."
+                )
+
+        # Fijar firma del aprobador: override explícito o el usuario autenticado
         if approve_data.approved_by_id:
             approver = self.db.query(Individual).filter(
                 Individual.id == approve_data.approved_by_id
@@ -991,22 +1010,18 @@ class VoucherService:
                 raise EntityNotFoundError("Individual", approve_data.approved_by_id)
             voucher.approved_by_id = approve_data.approved_by_id
         else:
-            # Auto-poblar desde el usuario autenticado
-            individual = self.db.query(Individual).filter(
-                Individual.user_id == approved_by_user_id,
-                Individual.is_deleted == False
-            ).first()
-            voucher.approved_by_id = individual.id if individual else None
+            voucher.approved_by_id = approver_individual.id if approver_individual else None
 
-        # Cambiar estado
-        voucher.status = VoucherStatusEnum.APPROVED
+        # Transición: PENDING → PENDING_IO_APPROVAL (queda pendiente de contraloría)
+        voucher.status = VoucherStatusEnum.PENDING_IO_APPROVAL
+        voucher.first_approved_at = datetime.now()
 
         # Agregar notas si existen
         if approve_data.notes:
             if voucher.internal_notes:
-                voucher.internal_notes += f"\n[APROBACIÓN] {approve_data.notes}"
+                voucher.internal_notes += f"\n[APROBACIÓN JEFE] {approve_data.notes}"
             else:
-                voucher.internal_notes = f"[APROBACIÓN] {approve_data.notes}"
+                voucher.internal_notes = f"[APROBACIÓN JEFE] {approve_data.notes}"
 
         voucher.updated_by = approved_by_user_id
         voucher.updated_at = datetime.now()
@@ -1014,7 +1029,88 @@ class VoucherService:
         self.db.commit()
         self.db.refresh(voucher)
 
-        # Enviar correo de aprobación en background (con PDF)
+        # Notificar a TODOS los contralores activos que hay un vale por aprobar (sin PDF)
+        try:
+            from app.shared.tasks.voucher_tasks import send_voucher_pending_io_email_task
+            send_voucher_pending_io_email_task.delay(voucher_id)
+        except Exception as e:
+            logger.warning(f"[VOUCHER SERVICE] No se pudo encolar tarea de email pendiente-contraloría: {e}")
+
+        return voucher
+
+    def approve_io_voucher(
+        self,
+        voucher_id: int,
+        approve_data: VoucherApprove,
+        approved_by_user_id: int,
+        role: int
+    ) -> Voucher:
+        """
+        Segunda aprobación (contraloría): PENDING_IO_APPROVAL → APPROVED
+
+        El gate es la PERTENENCIA ACTIVA a la tabla io_managers (NO el rol).
+        Un Admin que no esté en io_managers NO puede aprobar este nivel.
+
+        Args:
+            voucher_id: ID del voucher
+            approve_data: Datos de aprobación (notas opcionales)
+            approved_by_user_id: Usuario que aprueba
+            role: Rol del usuario (1-6)
+
+        Returns:
+            Voucher aprobado (APPROVED)
+
+        Raises:
+            BusinessRuleError: Si no está en PENDING_IO_APPROVAL o el usuario no es contralor
+        """
+        from app.entities.io_managers.repositories.io_manager_repository import IOManagerRepository
+
+        voucher = self.get_voucher(voucher_id)
+
+        # Validar acceso a la empresa (scoping multi-empresa)
+        self._validate_company_access(approved_by_user_id, role, voucher.company_id)
+
+        # Validar estado
+        if voucher.status != VoucherStatusEnum.PENDING_IO_APPROVAL:
+            raise BusinessRuleError(
+                f"Solo se puede dar la aprobación de contraloría a vouchers en estado PENDING_IO_APPROVAL. "
+                f"Estado actual: {voucher.status.value}"
+            )
+
+        # Individual del usuario autenticado
+        approver_individual = self.db.query(Individual).filter(
+            Individual.user_id == approved_by_user_id,
+            Individual.is_deleted == False
+        ).first()
+
+        # GATE NIVEL 2: pertenencia activa a io_managers (transversal, sin bypass por rol)
+        io_repo = IOManagerRepository(self.db)
+        if not approver_individual or not io_repo.exists_active_for_individual(approver_individual.id):
+            raise BusinessRuleError(
+                "Solo un contralor (io manager) registrado puede dar la aprobación de contraloría."
+            )
+
+        # Fijar firma del contralor
+        voucher.io_approved_by_id = approver_individual.id
+
+        # Transición: PENDING_IO_APPROVAL → APPROVED (doble aprobación completa)
+        voucher.status = VoucherStatusEnum.APPROVED
+        voucher.io_approved_at = datetime.now()
+
+        # Agregar notas si existen
+        if approve_data.notes:
+            if voucher.internal_notes:
+                voucher.internal_notes += f"\n[APROBACIÓN CONTRALORÍA] {approve_data.notes}"
+            else:
+                voucher.internal_notes = f"[APROBACIÓN CONTRALORÍA] {approve_data.notes}"
+
+        voucher.updated_by = approved_by_user_id
+        voucher.updated_at = datetime.now()
+
+        self.db.commit()
+        self.db.refresh(voucher)
+
+        # Enviar correo de aprobación final en background (con PDF) al creador
         try:
             from app.shared.tasks.voucher_tasks import send_voucher_approved_email_task
             send_voucher_approved_email_task.delay(voucher_id)

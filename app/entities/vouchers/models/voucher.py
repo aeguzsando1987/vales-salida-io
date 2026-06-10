@@ -26,8 +26,9 @@ class VoucherTypeEnum(str, enum.Enum):
 
 class VoucherStatusEnum(str, enum.Enum):
     """Estados del voucher"""
-    PENDING = "PENDING"                        # Recién creado, pendiente aprobación
-    APPROVED = "APPROVED"                      # Aprobado por gerente/supervisor
+    PENDING = "PENDING"                        # Recién creado, pendiente aprobación del jefe directo
+    PENDING_IO_APPROVAL = "PENDING_IO_APPROVAL"  # 1ª aprobación dada; pendiente de contraloría (io manager)
+    APPROVED = "APPROVED"                      # Doble aprobación completa (jefe directo + contraloría)
     IN_TRANSIT = "IN_TRANSIT"                  # Escaneado y en tránsito
     OVERDUE = "OVERDUE"                        # Vencido por tiempo (solo scheduler)
     INCOMPLETE_DAMAGED = "INCOMPLETE_DAMAGED"  # Entrada con faltantes/daños
@@ -84,7 +85,12 @@ class Voucher(Base):
 
     approved_by_id = Column(Integer, ForeignKey("individuals.id", ondelete="RESTRICT"),
                            nullable=True, index=True,
-                           comment="Gerente/Supervisor que aprobó")
+                           comment="Jefe directo que dio la 1ª aprobación")
+
+    # Segunda aprobación (contraloría / io manager)
+    io_approved_by_id = Column(Integer, ForeignKey("individuals.id", ondelete="RESTRICT"),
+                              nullable=True, index=True,
+                              comment="Contralor (io manager) que dio la 2ª aprobación")
 
     delivered_by_id = Column(Integer, ForeignKey("individuals.id", ondelete="RESTRICT"),
                             nullable=False, index=True,
@@ -107,6 +113,13 @@ class Voucher(Base):
 
     actual_return_date = Column(Date, nullable=True,
                                comment="Fecha real de retorno")
+
+    # Timestamps del flujo de doble aprobación
+    first_approved_at = Column(DateTime, nullable=True,
+                              comment="Momento de la 1ª aprobación (jefe directo)")
+
+    io_approved_at = Column(DateTime, nullable=True,
+                           comment="Momento de la 2ª aprobación (contraloría)")
 
     # ==================== INFORMACIÓN ADICIONAL ====================
 
@@ -149,6 +162,7 @@ class Voucher(Base):
 
     # Firmas digitales
     approved_by = relationship("Individual", foreign_keys=[approved_by_id])
+    io_approved_by = relationship("Individual", foreign_keys=[io_approved_by_id])
     delivered_by = relationship("Individual", foreign_keys=[delivered_by_id])
     received_by = relationship("Individual", foreign_keys=[received_by_id])
 

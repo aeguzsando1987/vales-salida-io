@@ -153,6 +153,7 @@ class VoucherController:
                 # Expandir nombres de relaciones
                 response.company_name = voucher.company.company_name if voucher.company else None
                 response.approved_by_name = voucher.approved_by.full_name if voucher.approved_by else None
+                response.io_approved_by_name = voucher.io_approved_by.full_name if voucher.io_approved_by else None
                 response.delivered_by_name = voucher.delivered_by.full_name if voucher.delivered_by else None
                 response.received_by_name = voucher.received_by.full_name if voucher.received_by else None
                 response.origin_branch_name = voucher.origin_branch.branch_name if voucher.origin_branch else None
@@ -164,6 +165,7 @@ class VoucherController:
                 response = VoucherDetailedResponse.model_validate(voucher)
                 response.company_name = voucher.company.company_name if voucher.company else None
                 response.approved_by_name = voucher.approved_by.full_name if voucher.approved_by else None
+                response.io_approved_by_name = voucher.io_approved_by.full_name if voucher.io_approved_by else None
                 response.delivered_by_name = voucher.delivered_by.full_name if voucher.delivered_by else None
                 response.received_by_name = voucher.received_by.full_name if voucher.received_by else None
                 response.origin_branch_name = voucher.origin_branch.branch_name if voucher.origin_branch else None
@@ -390,6 +392,46 @@ class VoucherController:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error al aprobar voucher: {str(e)}"
+            )
+
+    def approve_io(
+        self,
+        voucher_id: int,
+        approve_data: VoucherApprove,
+        current_user_id: int,
+        role: int
+    ) -> VoucherResponse:
+        """
+        Segunda aprobación (contraloría): PENDING_IO_APPROVAL → APPROVED
+
+        Raises:
+            HTTPException 404: Si no existe
+            HTTPException 400: Si no está en PENDING_IO_APPROVAL o el usuario no es contralor
+            HTTPException 500: Si error interno
+        """
+        try:
+            voucher = self.service.approve_io_voucher(
+                voucher_id,
+                approve_data,
+                current_user_id,
+                role
+            )
+            return VoucherResponse.model_validate(voucher)
+
+        except EntityNotFoundError as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        except BusinessRuleError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error en aprobación de contraloría: {str(e)}"
             )
 
     def start_transit(
