@@ -731,7 +731,8 @@ class VoucherController:
                 "entry_log": None,
                 "out_log": None,
                 "supervisor_approval": None,
-                "io_approval": None
+                "io_approval": None,
+                "cancellation": None
             }
 
             if logs_data["entry_log"]:
@@ -765,6 +766,22 @@ class VoucherController:
                             voucher.io_approved_by.full_name if voucher.io_approved_by else None
                         ),
                         "approved_at": voucher.io_approved_at
+                    }
+
+                # Cancelación / rechazo. cancelled_from_status define la capacidad
+                # (PENDING=jefe directo, PENDING_IO_APPROVAL=contraloría, APPROVED=cancelación).
+                # Fallback para cancelaciones históricas: si no hay firma persistida pero
+                # el vale está CANCELLED, se reporta sin responsable/fecha.
+                is_cancelled = voucher.status == VoucherStatusEnum.CANCELLED
+                if voucher.cancelled_by_id or voucher.cancelled_at or is_cancelled:
+                    formatted_logs["cancellation"] = {
+                        "cancelled_by_id": voucher.cancelled_by_id,
+                        "cancelled_by_name": (
+                            voucher.cancelled_by.full_name if voucher.cancelled_by else None
+                        ),
+                        "cancelled_at": voucher.cancelled_at,
+                        "cancelled_from_status": voucher.cancelled_from_status,
+                        "cancellation_reason": voucher.cancellation_reason
                     }
 
             return formatted_logs

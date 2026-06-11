@@ -1263,21 +1263,32 @@ class VoucherService:
                 f"No se puede cancelar un voucher en estado {voucher.status.value}"
             )
 
+        # Individual que ejecuta la cancelación (firma para la bitácora)
+        canceller_individual = self.db.query(Individual).filter(
+            Individual.user_id == cancelled_by_user_id,
+            Individual.is_deleted == False
+        ).first()
+
         # GATE CONTRALORÍA: rechazar un vale pendiente de contraloría es exclusivo
         # de contralores activos (mismo gate que approve_io, sin bypass por rol).
         is_io_rejection = voucher.status == VoucherStatusEnum.PENDING_IO_APPROVAL
         if is_io_rejection:
-            canceller_individual = self.db.query(Individual).filter(
-                Individual.user_id == cancelled_by_user_id,
-                Individual.is_deleted == False
-            ).first()
-
             io_repo = IOManagerRepository(self.db)
             if not canceller_individual or not io_repo.exists_active_for_individual(canceller_individual.id):
                 raise BusinessRuleError(
                     "Solo un contralor (io manager) registrado puede rechazar un vale "
                     "pendiente de contraloría."
                 )
+
+        # Capturar el estado previo: define la CAPACIDAD del rechazo en la bitácora
+        # (PENDING = jefe directo, PENDING_IO_APPROVAL = contraloría, APPROVED = cancelación)
+        prior_status = voucher.status
+
+        # Trazabilidad de cancelación (campos persistidos, leídos luego por get_logs)
+        voucher.cancelled_by_id = canceller_individual.id if canceller_individual else None
+        voucher.cancelled_at = datetime.now()
+        voucher.cancelled_from_status = prior_status.value
+        voucher.cancellation_reason = cancel_data.cancellation_reason
 
         # Cambiar estado
         voucher.status = VoucherStatusEnum.CANCELLED

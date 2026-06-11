@@ -121,6 +121,22 @@ class Voucher(Base):
     io_approved_at = Column(DateTime, nullable=True,
                            comment="Momento de la 2ª aprobación (contraloría)")
 
+    # Trazabilidad de cancelación / rechazo
+    cancelled_by_id = Column(Integer, ForeignKey("individuals.id", ondelete="RESTRICT"),
+                            nullable=True, index=True,
+                            comment="Individual que canceló/rechazó el vale")
+
+    cancelled_at = Column(DateTime, nullable=True,
+                         comment="Momento de la cancelación/rechazo")
+
+    cancelled_from_status = Column(String(30), nullable=True,
+                                  comment="Estado previo a la cancelación (define la capacidad: "
+                                          "PENDING=rechazo jefe directo, PENDING_IO_APPROVAL=rechazo "
+                                          "contraloría, APPROVED=cancelación)")
+
+    cancellation_reason = Column(Text, nullable=True,
+                                comment="Razón de la cancelación/rechazo (columna dedicada)")
+
     # ==================== INFORMACIÓN ADICIONAL ====================
 
     notes = Column(Text, nullable=True,
@@ -163,6 +179,7 @@ class Voucher(Base):
     # Firmas digitales
     approved_by = relationship("Individual", foreign_keys=[approved_by_id])
     io_approved_by = relationship("Individual", foreign_keys=[io_approved_by_id])
+    cancelled_by = relationship("Individual", foreign_keys=[cancelled_by_id])
     delivered_by = relationship("Individual", foreign_keys=[delivered_by_id])
     received_by = relationship("Individual", foreign_keys=[received_by_id])
 
