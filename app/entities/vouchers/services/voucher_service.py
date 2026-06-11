@@ -617,7 +617,8 @@ class VoucherService:
             "voucher_id": voucher.id,
             "folio": voucher.folio,
             "entry_log": entry_log,
-            "out_log": out_log
+            "out_log": out_log,
+            "voucher": voucher
         }
 
     # ==================== CRUD OPERATIONS ====================

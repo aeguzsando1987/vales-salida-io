@@ -729,7 +729,9 @@ class VoucherController:
                 "voucher_id": logs_data["voucher_id"],
                 "folio": logs_data["folio"],
                 "entry_log": None,
-                "out_log": None
+                "out_log": None,
+                "supervisor_approval": None,
+                "io_approval": None
             }
 
             if logs_data["entry_log"]:
@@ -741,6 +743,29 @@ class VoucherController:
                 formatted_logs["out_log"] = self._format_out_log_response(
                     logs_data["out_log"]
                 )
+
+            # Aprobaciones (datos persistidos en el propio voucher).
+            voucher = logs_data.get("voucher")
+            if voucher:
+                # Nivel 1: jefe directo. Se incluye si hay firma; la fecha puede ser
+                # nula en vales aprobados antes de esta feature (fallback "no registrada").
+                if voucher.approved_by_id:
+                    formatted_logs["supervisor_approval"] = {
+                        "approved_by_id": voucher.approved_by_id,
+                        "approved_by_name": (
+                            voucher.approved_by.full_name if voucher.approved_by else None
+                        ),
+                        "approved_at": voucher.first_approved_at
+                    }
+                # Nivel 2: contraloría (io manager). Solo existe en el flujo nuevo.
+                if voucher.io_approved_by_id:
+                    formatted_logs["io_approval"] = {
+                        "approved_by_id": voucher.io_approved_by_id,
+                        "approved_by_name": (
+                            voucher.io_approved_by.full_name if voucher.io_approved_by else None
+                        ),
+                        "approved_at": voucher.io_approved_at
+                    }
 
             return formatted_logs
 
