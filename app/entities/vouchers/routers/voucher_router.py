@@ -349,7 +349,7 @@ def close_voucher(
     "/{voucher_id}/cancel",
     response_model=VoucherResponse,
     summary="Cancelar voucher",
-    description="Transición: → CANCELLED (solo desde PENDING o APPROVED)"
+    description="Transición: → CANCELLED (desde PENDING, PENDING_IO_APPROVAL o APPROVED)"
 )
 def cancel_voucher(
     voucher_id: int = Path(..., gt=0, description="ID del voucher"),
@@ -360,8 +360,10 @@ def cancel_voucher(
     """
     Cancela un voucher: → CANCELLED
 
-    Solo permitido desde:
+    Permitido desde:
     - PENDING
+    - PENDING_IO_APPROVAL (RECHAZO DE CONTRALORÍA: exclusivo de contralores
+      activos / io_managers, mismo gate que approve-io, sin bypass por rol)
     - APPROVED
 
     No permitido desde:
@@ -371,9 +373,11 @@ def cancel_voucher(
 
     Validaciones:
     - Estado actual permite cancelación
+    - En PENDING_IO_APPROVAL, el usuario debe pertenecer (activo) a io_managers
     - Razón de cancelación proporcionada
 
-    Permisos requeridos: vouchers:cancel (nivel 3+)
+    Permisos requeridos: vouchers:cancel (nivel 3+). En PENDING_IO_APPROVAL el
+    gate real adicional es la pertenencia a io_managers.
     """
     controller = VoucherController(db)
     return controller.cancel(voucher_id, cancel_data, current_user.id, current_user.role)
