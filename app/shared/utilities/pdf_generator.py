@@ -629,17 +629,25 @@ class PDFGenerator:
             col1.append([lbl('Retorno estimado:'), val(str(voucher.estimated_return_date))])
 
         # Columna 2: origen/destino e intercompañía
+        is_entry = voucher.voucher_type == 'ENTRY'
+
         col2 = [
             [lbl('Empresa:'),       val(company_name)],
             [lbl('Intercompañía:'), val(intercompany_text)],
         ]
         if hasattr(voucher, 'origin_branch') and voucher.origin_branch:
             col2.append([lbl('Origen:'), val(getattr(voucher.origin_branch, 'branch_name', '—'))])
-        if hasattr(voucher, 'destination_branch') and voucher.destination_branch:
-            col2.append([lbl('Destino:'), val(getattr(voucher.destination_branch, 'branch_name', '—'))])
+
+        if is_entry:
+            # Vales de entrada: solo orígenes (sin destino), igual que el formulario.
+            # El campo outer_destination almacena aquí el "Origen Externo".
+            col2.append([lbl('Origen Externo:'), val(getattr(voucher, 'outer_destination', None) or '—')])
         else:
-            col2.append([lbl('Destino:'), val('—')])
-        col2.append([lbl('Dest. Externo:'), val(getattr(voucher, 'outer_destination', None) or '—')])
+            if hasattr(voucher, 'destination_branch') and voucher.destination_branch:
+                col2.append([lbl('Destino:'), val(getattr(voucher.destination_branch, 'branch_name', '—'))])
+            else:
+                col2.append([lbl('Destino:'), val('—')])
+            col2.append([lbl('Dest. Externo:'), val(getattr(voucher, 'outer_destination', None) or '—')])
 
         # Columna 3: personas involucradas
         col3 = [
