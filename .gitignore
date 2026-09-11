@@ -47,3 +47,5 @@ logs/
 
 # Reportes generados (Excel binario, se regenera con build_xlsm.ps1)
 reportes/*.xlsm
+reportes/*.zip
+reportes/driver_odbc/
