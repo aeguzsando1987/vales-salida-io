@@ -44,3 +44,6 @@ logs/
 
 # Docker
 .dockerignore
+
+# Reportes generados (Excel binario, se regenera con build_xlsm.ps1)
+reportes/*.xlsm
